@@ -1,0 +1,17 @@
+{
+  "name": "qb-json-tok",
+  "version": "1.0.0",
+  "description": "Fast and light JSON tokenizer for building custom JSON routines",
+  "devDependencies": {
+    "qb-utf8-ez": "^2.0.3",
+    "tape": "^4.6.3",
+    "test-kit": "^1.1.4"
+  },
+  "scripts": {
+    "test": "tap --coverage-report=html test.js",
+    "ptest": "browserify perf/ptest.js > perf/ptest-bundle.js && echo 'Built. \nOpen perf/ptest.html in a browser to run tests\n'",
+    "dist": "mkdir -p dist && browserify index.js > dist/qb-json-tok.js && cat dist/qb-json-tok.js | uglifyjs -c -m > dist/qb-json-tok.min.js"
+  },
+  "author": "Matthew Voss",
+  "license": "ISC"
+}

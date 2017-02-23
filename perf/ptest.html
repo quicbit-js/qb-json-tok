@@ -1,0 +1,85 @@
+<html>
+<head>
+    <title>qb-json-tok Performance Test</title>
+</head>
+<body>
+<H1>Instructions</H1>
+<ol>
+    <li>build ptest-bundle.js with 'npm run ptest'</li>
+    <li>open in browser and view console output to see results</li>
+</ol>
+<script src="ptest-bundle.js"></script>
+<script>
+    var sample = '在嚴寒的冬日裡，只要一碗熱湯，暖身又暖心。這道海鮮疙瘩湯用材簡單，'
+//    var sample = 'abcd'
+//    var sample = 'abcdefghijklmnopqrstuvwxyz1234567890'
+
+    var time_tokenize = window.document.ptest.time_tokenize;
+
+    [100, 1000, 10 * 1000, 100 * 1000, 1000 * 1000].forEach(function(n) {
+        time_tokenize(sample, n, 10000000)
+    });
+
+</script>
+</body>
+</html>
+
+<!--
+
+macbook pro mid-2014
+
+CHROME 56.0.2924.87 (64-bit) - big strings 'abcdefghijklmnopqrstuvwxyz1234567890'
+
+buf size: 100
+100000 "keys" 700000 "vals"
+tokenize: 0.1kb buffers 100000 times in 40.925000000000004 ms.  244.34941967012824 mb per sec.
+buf size: 1000
+10000 "keys" 300000 "vals"
+tokenize: 1kb buffers 10000 times in 38.515000000000015 ms.  259.6391016487082 mb per sec.
+buf size: 10000
+1000 "keys" 261000 "vals"
+tokenize: 10kb buffers 1000 times in 38.670000000000016 ms.  258.59839668994044 mb per sec.
+buf size: 100000
+100 "keys" 256800 "vals"
+tokenize: 100kb buffers 100 times in 35.50999999999999 ms.  281.6108138552521 mb per sec.
+buf size: 1000000
+10 "keys" 256450 "vals"
+tokenize: 1000kb buffers 10 times in 35.18000000000001 ms.  284.25241614553715 mb per sec.
+
+CHROME 56.0.2924.87 (64-bit) - small strings 'abcd'
+
+buf size: 98
+100000 "keys" 1700000 "vals"
+tokenize: 0.1kb buffers 100000 times in 50.47 ms.  198.13750743015652 mb per sec.
+buf size: 1000
+10000 "keys" 1460000 "vals"
+tokenize: 1kb buffers 10000 times in 54.97500000000002 ms.  181.90086402910407 mb per sec.
+buf size: 10000
+1000 "keys" 1432000 "vals"
+tokenize: 10kb buffers 1000 times in 48.974999999999994 ms.  204.18580908626853 mb per sec.
+buf size: 100000
+100 "keys" 1428900 "vals"
+tokenize: 100kb buffers 100 times in 55.89999999999998 ms.  178.89087656529523 mb per sec.
+buf size: 999999
+10 "keys" 1428600 "vals"
+tokenize: 1000kb buffers 10 times in 53.45999999999998 ms.  187.05574261129826 mb per sec.
+
+
+CHROME 56.0.2924.87 (64-bit) - chinese strings (even bigger) '在嚴寒的冬日裡，只要一碗熱湯，暖身又暖心。這道海鮮疙瘩湯用材簡單，'
+buf size: 100
+100000 "keys" 500000 "vals"
+tokenize: 0.1kb buffers 100000 times in 41.17 ms.  242.89531212047606 mb per sec.
+buf size: 1000
+10000 "keys" 140000 "vals"
+tokenize: 1kb buffers 10000 times in 34.665000000000006 ms.  288.475407471513 mb per sec.
+buf size: 10000
+1000 "keys" 102000 "vals"
+tokenize: 10kb buffers 1000 times in 34.06999999999998 ms.  293.5133548576462 mb per sec.
+buf size: 100000
+100 "keys" 98500 "vals"
+tokenize: 100kb buffers 100 times in 31.60499999999999 ms.  316.4056320202501 mb per sec.
+buf size: 1000000
+10 "keys" 98080 "vals"
+tokenize: 1000kb buffers 10 times in 33.599999999999994 ms.  297.6190476190477 mb per sec.
+
+-->
