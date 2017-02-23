@@ -9,14 +9,16 @@ and leaving heavy-lifting, such as value decoding, as optional work for the call
 
     npm install qb-json-tok
 
-## tokenize(buffer, callback)
+## tokenize(buffer, callback, options)
 
-The tokenizer is just a function with two inputs:
+The tokenizer is just a function with three inputs:
 
-    buffer:    a UTF-8 encoded buffer containing ANY JSON value such as an object, quoted
-               string, array, or valid JSON number.  IOW, it doesn't have to be an {..} object.
+    buffer:    A UTF-8 encoded buffer containing ANY JSON value such as an object, quoted
+               string, array, or valid JSON number.  IOW, it doesn't have to be a {...} object.
                
-    callback   a function called for each token encountered with the following parameters:
+    callback:  A function called for each token encountered.
+               Returning a truthy value from the function will halt processing.
+               Takes these parameters:
     
         function(
             buffer:      the buffer being parsed
@@ -27,6 +29,9 @@ The tokenizer is just a function with two inputs:
             valIndex:    index start of a stand-alone value or the value in a key/value pair
             valLength:   length of value in UTF-8 bytes - a stand alone value or value in a key/value pair
         )
+    
+    options:
+        end:    If set, then this value will be passed to callback as the 'token' when parsing completes.
 
 ## Example
 
@@ -43,39 +48,40 @@ Here is an example copied from **test.js** showing how to write a callback that 
     var STRING = 0x22       // "  (double-quote)
     var NUMBER = 0xF1       // code for any number
     
-    function format_callback(opt) {
-        var log = opt.log || console.log;
-        var tok2str = function tok2char(tok) {
-            switch(tok) {
-    
-                // only these 2 tokens non-intuitive
-                case STRING:  return 'S';
-                case NUMBER:  return 'N';
-    
-                // other tokens are intuitive... char codes
-                //    '{' for object start,
-                //    't' for true,
-                //    'f' for false,
-                //    'n' for null...
-                default:    return String.fromCharCode(tok);
-            }
+    var log = console.log;
+    function format_callback(buf, key_off, key_len, tok, val_off, val_len) {
+        var val_str
+        switch(tok) {
+            case STRING:  val_str = 'S' + val_len; break;
+            case NUMBER:  val_str = 'N' + val_len; break;
+            default:      val_str = String.fromCharCode(tok);
         }
-        return function(buf, keyIndex, keyLength, tok, valIndex, valLength) {
-            var vstr =
-                tok2str(tok) +
-                ((tok === NUMBER || tok === STRING) ? valLength : '') +
-                '@' + valIndex;
-            if(keyIndex === -1) {  // not a key-value pair
-                log(vstr);
-            } else {               // a key-value pair
-                var kstr = 'K' + keyLength + '@' + keyIndex;
-                log(kstr + ':' + vstr);
-            }
+        val_str += '@' + val_off
+        if(key_off === -1) {
+            // value only
+            console.log(val_str);
+        } else {
+            // key and value
+            console.log('K' + key_len + '@' + key_off + ':' + val_str);
         }
     }
-
-    tokenize(a_utf8_encoded_json_file, format_callback);
     
+    utf8 = require('qb-utf8-ez');           // easy creation of UTF-8 buffer
+    
+    tokenize(utf8.buffer('["a", "bb"]'), format_callback, {end:0x45})
+        
+    > [@0           // start array at 0
+    > N4@2          // 4-byte number at 2                    
+    > S4@8          // 4-byte string (including quotes) at 8
+    > t@14          // true at 14 (always 4 bytes)
+    > {@20          // start object at 20
+    > S4@21         
+    > N1@27
+    > S4@30
+    > N1@36
+    > }@37
+    > ]@39
+    > E@40
 
 **test.js** has some more examples and also shows ways to easily create 
 UTF-8 encoded JSON in memory from javascript.

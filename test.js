@@ -58,53 +58,21 @@ var NUMBER = 0xF1       // code for any number
 
 function format_callback(opt) {
     var log = opt.log || console.log;
-    var tok2str = function tok2char(tok) {
+
+    return function format_callback(buf, key_off, key_len, tok, val_off, val_len) {
+        var val_str
         switch(tok) {
-
-            // only these 2 tokens non-intuitive
-            case STRING:  return 'S';
-            case NUMBER:  return 'N';
-
-            // other tokens are intuitive... char codes
-            //    '{' for object start,
-            //    't' for true,
-            //    'f' for false,
-            //    'n' for null...
-            default:    return String.fromCharCode(tok);
+            case STRING:  val_str = 'S' + val_len; break;
+            case NUMBER:  val_str = 'N' + val_len; break;
+            default:      val_str = String.fromCharCode(tok);
         }
-    }
-    return function(buf, keyIndex, keyLength, tok, valIndex, valLength) {
-        var vstr =
-            tok2str(tok) +
-            ((tok === NUMBER || tok === STRING) ? valLength : '') +
-            '@' + valIndex;
-        if(keyIndex === -1) {  // not a key-value pair
-            log(vstr);
-        } else {               // a key-value pair
-            var kstr = 'K' + keyLength + '@' + keyIndex;
-            log(kstr + ':' + vstr);
-        }
-    }
-}
-
-// format a brief token output to console.log, or to the opt.log function, if provided.
-function format_cb(opt) {
-    var log = opt && opt.log || console.log
-    var tok2str = function tok2char(tok) {
-        switch(tok) {
-            case 34:    return 'S'      // '"':  string
-            case 0xF1:  return 'N'      // NUMBER
-            default:    return String.fromCharCode(tok)
-        }
-    }
-    return function(buf, ki, klen, tok, vi, vlen) {
-        var vlenstr = (tok === TOK.NUMBER || tok === TOK.STRING) ? vlen : ''
-        var vstr = tok2str(tok) + vlenstr + '@' + vi
-        if(ki === -1) {
-            log(vstr)
+        val_str += '@' + val_off
+        if(key_off === -1) {
+            // value only
+            log(val_str);
         } else {
-            var kstr = 'K' + klen + '@' + ki
-            log(kstr + ':' + vstr)
+            // key and value
+            log('K' + key_len + '@' + key_off + ':' + val_str);
         }
     }
 }
@@ -118,21 +86,21 @@ function format_cb(opt) {
 //     't@23' means true at offset 23 ...
 test('format callback', function(t) {
     t.tableAssert([
-        [ 'input',                                   'exp'],
-        [ '"\\""',                                   [ 'S4@0' ]                                           ],
-        [ '{"a":1}',                                 [ '{@0','K3@1:N1@5','}@6' ]                         ],
-        [ '-3.05',                                   [ 'N5@0' ]                                            ],
-        [ '"x"',                                     [ 'S3@0']                                             ],
-        [ '\t\t"x\\a\r"  ',                          [ 'S6@2']                                             ],
-        [ '"\\"x\\"a\r\\""',                         [ 'S11@0']                                            ],
-        [ '"x", 4\n, null, 3.2e5 , true, false',     [ 'S3@0','N1@5','n@9','N5@15','t@23', 'f@29']         ],
-        [ ' [0,1,2]',                                [ '[@1','N1@2','N1@4','N1@6',']@7']                   ],
-        [ '["a", "bb"] ',                            [ '[@0','S3@1','S4@6',']@10' ]                        ],
-        [ '{"a",1.3 \n\t{ "b" : ["v", "w"]\n} \n }', [ '{@0','S3@1','N3@5','{@11','S3@13','[@19','S3@20','S3@25',']@28','}@30','}@34' ] ],
-    ], function(input) {
+        [ 'input',              'opt',                       'exp'],
+        [ '"\\""',              null,                       [ 'S4@0' ]                                           ],
+        [ '{"a":1}',            null,                       [ '{@0','K3@1:N1@5','}@6' ]                         ],
+        [ '-3.05',              null,                       [ 'N5@0' ]                                            ],
+        [ '"x"',                null,                       [ 'S3@0']                                             ],
+        [ '\t\t"x\\a\r"  ',     null,                       [ 'S6@2']                                             ],
+        [ '"\\"x\\"a\r\\""',    null,                       [ 'S11@0']                                            ],
+        [ ' [0,1,2]',           {end:0x45},                 [ '[@1','N1@2','N1@4','N1@6',']@7','E@8']             ],
+        [ '["a", "bb"] ',       null,                       [ '[@0','S3@1','S4@6',']@10' ]                        ],
+        [ '"x", 4\n, null, 3.2e5 , true, false',      null, [ 'S3@0','N1@5','n@9','N5@15','t@23', 'f@29']         ],
+        [ '{"a",1.3 \n\t{ "b" : ["v", "w"]\n}\t\n }', null, [ '{@0','S3@1','N3@5','{@11','S3@13','[@19','S3@20','S3@25',']@28','}@30','}@34' ] ],
+    ], function(input, opt) {
         var hec = t.hector()
         var cb = format_callback({log: hec})
-        tokenize(utf8.buffer(input), cb)
+        tokenize(utf8.buffer(input), cb, opt)
         return hec.arg(0)
     })
 })

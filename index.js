@@ -2,7 +2,7 @@ function parse_err(msg, buf, off) {
     throw Error(msg + ': ' + String.fromCharCode(buf[off]) + ' at ' + off)
 }
 
-function tokenize(buf, cb) {
+function tokenize(buf, cb, opt) {
     var tok = 0             // current token
     var idx = 0             // current index offset into buf
     var lim = buf.length    // buffer limit
@@ -109,7 +109,7 @@ function tokenize(buf, cb) {
         var stop = false
         if(si === -1) {
             // non-string value
-            stop = cb(buf, -1, -1, tok, vi, idx - vi, buf)
+            stop = cb(buf, -1, 0, tok, vi, idx - vi, buf)
         } else {
             // string value plus subsequent token
             if(prev_tok === 58) {   // :  COLON
@@ -117,11 +117,11 @@ function tokenize(buf, cb) {
                 stop = cb(buf, si, slen, tok, vi, idx - vi)
             } else {
                 // string value and non-colon token (not a key-value)
-                stop = cb(buf, -1, -1, 34, si, slen)            // 34 = QUOTE/STRING
+                stop = cb(buf, -1, 0, 34, si, slen)            // 34 = QUOTE/STRING
                 if(stop) {
                     return si + slen
                 }
-                stop = cb(buf, -1, -1, tok, vi, idx - vi)
+                stop = cb(buf, -1, 0, tok, vi, idx - vi)
             }
             si = slen = -1
         }
@@ -130,7 +130,10 @@ function tokenize(buf, cb) {
         }
     }  // end tokenLoop: while(idx < lim) {...
     if(si !== -1) {
-        cb(buf, -1, -1, 34, si, slen) // push out pending string (34 = QUOTE/STRING ) as a value - this would not work for truncation mode
+        cb(buf, -1, 0, 34, si, slen) // push out pending string (34 = QUOTE/STRING ) as a value - this would not work for truncation mode
+    }
+    if(opt && opt.end) {
+        cb(buf, -1, 0, opt.end, lim, 0)        // END
     }
     return idx  // return new position
 }
