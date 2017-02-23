@@ -60,19 +60,17 @@ function format_callback(opt) {
     var log = opt.log || console.log;
 
     return function format_callback(buf, key_off, key_len, tok, val_off, val_len) {
-        var val_str
+        var val_str;
         switch(tok) {
             case STRING:  val_str = 'S' + val_len; break;
             case NUMBER:  val_str = 'N' + val_len; break;
             default:      val_str = String.fromCharCode(tok);
         }
-        val_str += '@' + val_off
+        val_str += '@' + val_off;
         if(key_off === -1) {
-            // value only
-            log(val_str);
+            log(val_str);                                           // value only
         } else {
-            // key and value
-            log('K' + key_len + '@' + key_off + ':' + val_str);
+            log('K' + key_len + '@' + key_off + ':' + val_str);     // key and value
         }
     }
 }
