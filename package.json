@@ -1,6 +1,6 @@
 {
   "name": "qb-json-tok",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Fast and light JSON tokenizer for building custom JSON routines",
   "devDependencies": {
     "qb-utf8-ez": "^2.0.3",
