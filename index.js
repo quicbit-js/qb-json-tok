@@ -7,10 +7,8 @@ function tokenize(buf, cb, opt) {
     var idx = 0             // current index offset into buf
     var lim = buf.length    // buffer limit
     var vi = -1             // value start index
-    var vlen = -1           // value length
-    // track previous string, which may be object key
-    var si = -1             // string index
-    var slen = -1           // string length
+    var si = -1             // previous string index   (may be a key or string value)
+    var slen = -1           // previous string length  (may be a key or string value)
     var prev_tok = -1
     main_loop: while(idx < lim) {
         prev_tok = tok
@@ -39,7 +37,6 @@ function tokenize(buf, cb, opt) {
             case 123:       // {    OBJECT START
             case 125:       // }    OBJECT END
                 vi = idx++
-                vlen = 1
                 break
             case 58:        // :    COLON
                 idx++

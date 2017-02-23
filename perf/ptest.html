@@ -12,7 +12,7 @@
 <script>
     var sample = '在嚴寒的冬日裡，只要一碗熱湯，暖身又暖心。這道海鮮疙瘩湯用材簡單，'
 //    var sample = 'abcd'
-//    var sample = 'abcdefghijklmnopqrstuvwxyz1234567890'
+    var sample = 'abcdefghijklmnopqrstuvwxyz1234567890'
 
     var time_tokenize = window.document.ptest.time_tokenize;
 
@@ -28,58 +28,60 @@
 
 macbook pro mid-2014
 
-CHROME 56.0.2924.87 (64-bit) - big strings 'abcdefghijklmnopqrstuvwxyz1234567890'
-
-buf size: 100
-100000 "keys" 700000 "vals"
-tokenize: 0.1kb buffers 100000 times in 40.925000000000004 ms.  244.34941967012824 mb per sec.
-buf size: 1000
-10000 "keys" 300000 "vals"
-tokenize: 1kb buffers 10000 times in 38.515000000000015 ms.  259.6391016487082 mb per sec.
-buf size: 10000
-1000 "keys" 261000 "vals"
-tokenize: 10kb buffers 1000 times in 38.670000000000016 ms.  258.59839668994044 mb per sec.
-buf size: 100000
-100 "keys" 256800 "vals"
-tokenize: 100kb buffers 100 times in 35.50999999999999 ms.  281.6108138552521 mb per sec.
-buf size: 1000000
-10 "keys" 256450 "vals"
-tokenize: 1000kb buffers 10 times in 35.18000000000001 ms.  284.25241614553715 mb per sec.
-
 CHROME 56.0.2924.87 (64-bit) - small strings 'abcd'
 
 buf size: 98
-100000 "keys" 1700000 "vals"
-tokenize: 0.1kb buffers 100000 times in 50.47 ms.  198.13750743015652 mb per sec.
+1000000 "keys" 17000000 "vals"
+tokenize: 0.1kb buffers 1000000 times in 433.725 ms.  230.56083924145483 mb per sec.
 buf size: 1000
-10000 "keys" 1460000 "vals"
-tokenize: 1kb buffers 10000 times in 54.97500000000002 ms.  181.90086402910407 mb per sec.
+100000 "keys" 14600000 "vals"
+tokenize: 1kb buffers 100000 times in 496.44 ms.  201.43421158649585 mb per sec.
 buf size: 10000
-1000 "keys" 1432000 "vals"
-tokenize: 10kb buffers 1000 times in 48.974999999999994 ms.  204.18580908626853 mb per sec.
+10000 "keys" 14320000 "vals"
+tokenize: 10kb buffers 10000 times in 480.3900000000001 ms.  208.16419992089754 mb per sec.
 buf size: 100000
-100 "keys" 1428900 "vals"
-tokenize: 100kb buffers 100 times in 55.89999999999998 ms.  178.89087656529523 mb per sec.
+1000 "keys" 14289000 "vals"
+tokenize: 100kb buffers 1000 times in 518.0249999999999 ms.  193.04087640557893 mb per sec.
 buf size: 999999
-10 "keys" 1428600 "vals"
-tokenize: 1000kb buffers 10 times in 53.45999999999998 ms.  187.05574261129826 mb per sec.
+100 "keys" 14286000 "vals"
+tokenize: 1000kb buffers 100 times in 505.83000000000015 ms.  197.69487772571807 mb per sec.
+
+
+
+CHROME 56.0.2924.87 (64-bit) - big strings 'abcdefghijklmnopqrstuvwxyz1234567890'
+
+buf size: 100
+1000000 "keys" 7000000 "vals"
+tokenize: 0.1kb buffers 1000000 times in 375.41499999999996 ms.  266.3718817841589 mb per sec.
+buf size: 1000
+100000 "keys" 3000000 "vals"
+tokenize: 1kb buffers 100000 times in 377.755 ms.  264.7218435229183 mb per sec.
+buf size: 10000
+10000 "keys" 2610000 "vals"
+tokenize: 10kb buffers 10000 times in 358.18499999999995 ms.  279.18533718609103 mb per sec.
+buf size: 100000
+1000 "keys" 2568000 "vals"
+tokenize: 100kb buffers 1000 times in 383.5300000000002 ms.  260.73579641749006 mb per sec.
+buf size: 1000000
+100 "keys" 2564500 "vals"
+tokenize: 1000kb buffers 100 times in 364.31500000000005 ms.  274.48773726033784 mb per sec.
+
 
 
 CHROME 56.0.2924.87 (64-bit) - chinese strings (even bigger) '在嚴寒的冬日裡，只要一碗熱湯，暖身又暖心。這道海鮮疙瘩湯用材簡單，'
 buf size: 100
-100000 "keys" 500000 "vals"
-tokenize: 0.1kb buffers 100000 times in 41.17 ms.  242.89531212047606 mb per sec.
+1000000 "keys" 5000000 "vals"
+tokenize: 0.1kb buffers 1000000 times in 340.855 ms.  293.37988294142673 mb per sec.
 buf size: 1000
-10000 "keys" 140000 "vals"
-tokenize: 1kb buffers 10000 times in 34.665000000000006 ms.  288.475407471513 mb per sec.
+100000 "keys" 1400000 "vals"
+tokenize: 1kb buffers 100000 times in 359.03500000000014 ms.  278.5243778461709 mb per sec.
 buf size: 10000
-1000 "keys" 102000 "vals"
-tokenize: 10kb buffers 1000 times in 34.06999999999998 ms.  293.5133548576462 mb per sec.
+10000 "keys" 1020000 "vals"
+tokenize: 10kb buffers 10000 times in 321.6149999999998 ms.  310.93077126377835 mb per sec.
 buf size: 100000
-100 "keys" 98500 "vals"
-tokenize: 100kb buffers 100 times in 31.60499999999999 ms.  316.4056320202501 mb per sec.
+1000 "keys" 985000 "vals"
+tokenize: 100kb buffers 1000 times in 320.385 ms.  312.124475240726 mb per sec.
 buf size: 1000000
-10 "keys" 98080 "vals"
-tokenize: 1000kb buffers 10 times in 33.599999999999994 ms.  297.6190476190477 mb per sec.
-
+100 "keys" 980800 "vals"
+tokenize: 1000kb buffers 100 times in 323.6400000000001 ms.  308.9852923000864 mb per sec.
 -->
