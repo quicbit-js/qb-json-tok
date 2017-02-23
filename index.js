@@ -1,5 +1,5 @@
-function parse_err(msg, buf, off) {
-    throw Error(msg + ': ' + String.fromCharCode(buf[off]) + ' at ' + off)
+function parse_err(msg, buf, idx) {
+    throw Error(msg + ': ' + String.fromCharCode(buf[idx]) + ' at ' + idx)
 }
 
 function tokenize(buf, cb, opt) {
@@ -11,7 +11,7 @@ function tokenize(buf, cb, opt) {
     // track previous string, which may be object key
     var si = -1             // string index
     var slen = -1           // string length
-    var prev_tok = 0
+    var prev_tok = -1
     main_loop: while(idx < lim) {
         prev_tok = tok
         tok = buf[idx]
@@ -28,9 +28,11 @@ function tokenize(buf, cb, opt) {
                         case 32:            // SPACE
                             continue
                         default:
+                            tok = prev_tok      // whitespace is not a token
                             continue main_loop
                     }
                 }
+                tok = prev_tok                  // whitespace is not a token
                 continue
             case 91:        // [    ARRAY START
             case 93:        // ]    ARRAY END
@@ -41,7 +43,7 @@ function tokenize(buf, cb, opt) {
                 break
             case 58:        // :    COLON
                 idx++
-                continue
+                continue    // main_loop
             case 34:        // "    QUOTE
                 vi = idx
                 while(true) {
@@ -59,7 +61,7 @@ function tokenize(buf, cb, opt) {
                     // set string index (potential key)
                     si = vi
                     slen = idx - si
-                    continue  // next tokens will yield either value or key/value
+                    continue  // main_loop: next tokens will yield either value or key/value
                 }
                 break
             case 110:           // 'n'  null
@@ -96,7 +98,7 @@ function tokenize(buf, cb, opt) {
                         case 101: // e
                             break
                         default:
-                            parse_err('illegal number character', buf, idx-1)
+                            parse_err('illegal number character', buf, idx)
                     }
                 }
                 break

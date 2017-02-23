@@ -46,9 +46,16 @@ Here is an example copied from **test.js** showing how to write a callback that 
     
     // useful token constants:
     var STRING = 0x22       // "  (double-quote)
-    var NUMBER = 0xF1       // code for any number
+    var NUMBER = 0xF1       // token for JSON number
+    // other tokens are intuitive - they are the same char code as the first byte parsed
+    // 't' for true
+    // 'f' for false
+    // 'n' for null
+    // '{' for object start
+    // '}' for object end
+    // '[' for array start
+    // ...
     
-    var log = console.log;
     function format_callback(buf, key_off, key_len, tok, val_off, val_len) {
         var val_str
         switch(tok) {
@@ -65,23 +72,19 @@ Here is an example copied from **test.js** showing how to write a callback that 
             console.log('K' + key_len + '@' + key_off + ':' + val_str);
         }
     }
+
+    var utf8 = require('qb-utf8-ez');           // to create UTF-8 from strings
     
-    utf8 = require('qb-utf8-ez');           // easy creation of UTF-8 buffer
-    
-    tokenize(utf8.buffer('["a", "bb"]'), format_callback, {end:0x45})
+    tokenize(utf8.buffer('[ -2.3, "bb", true, {"a": 1, "b": 2} ]'), format_callback, {end:0x45})
         
     > [@0           // start array at 0
     > N4@2          // 4-byte number at 2                    
     > S4@8          // 4-byte string (including quotes) at 8
     > t@14          // true at 14 (always 4 bytes)
     > {@20          // start object at 20
-    > S4@21         
-    > N1@27
-    > S4@30
-    > N1@36
-    > }@37
-    > ]@39
-    > E@40
+    > K3@21:N1@26   // 3-byte key at 21: 1 byte number at 34
+    > K3@29:N1@34   ...
+    > }@35
+    > ]@37
+    > E@38          // end of parsing at 38
 
-**test.js** has some more examples and also shows ways to easily create 
-UTF-8 encoded JSON in memory from javascript.

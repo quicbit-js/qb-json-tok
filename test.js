@@ -2,20 +2,6 @@ var test = require('test-kit').tape()
 var tokenize = require('.')
 var utf8 = require('qb-utf8-ez')
 
-var TOK = {
-    // returned token types
-    OBJ_BEG:    123,    // '{'
-    OBJ_END:    125,    // '}'
-    ARR_BEG:    91,     // '['
-    ARR_END:    93,     // ']'
-    NULL:       110,    // 'n'
-    TRUE:       116,    // 't'
-    FALSE:      102,    // 'f'
-    STRING:     34,     // '"'
-    NUMBER:     0xF1,   // special code for any number
-    END:        0xF3,   // special code for end-of-buffer
-}
-
 test('callback stop', function(t) {
     var stop_cb = function(stop_after) {
         var call_count = 0
@@ -54,7 +40,15 @@ test('errors', function(t) {
 
 // useful token constants:
 var STRING = 0x22       // "  (double-quote)
-var NUMBER = 0xF1       // code for any number
+var NUMBER = 0xF1       // token for JSON number
+// other tokens are intuitive - they are the same char code as the first byte parsed
+// 't' for true
+// 'f' for false
+// 'n' for null
+// '{' for object start
+// '}' for object end
+// '[' for array start
+// ...
 
 function format_callback(opt) {
     var log = opt.log || console.log;
@@ -86,7 +80,9 @@ test('format callback', function(t) {
     t.tableAssert([
         [ 'input',              'opt',                       'exp'],
         [ '"\\""',              null,                       [ 'S4@0' ]                                           ],
-        [ '{"a":1}',            null,                       [ '{@0','K3@1:N1@5','}@6' ]                         ],
+        [ '{"a":1}',             null,                      [ '{@0','K3@1:N1@5','}@6' ]                         ],
+        [ '{"a" :1}',            null,                      [ '{@0','K3@1:N1@6','}@7' ]                         ],
+        [ '{"a": 1}',            null,                      [ '{@0','K3@1:N1@6','}@7' ]                         ],
         [ '-3.05',              null,                       [ 'N5@0' ]                                            ],
         [ '"x"',                null,                       [ 'S3@0']                                             ],
         [ '\t\t"x\\a\r"  ',     null,                       [ 'S6@2']                                             ],
@@ -94,7 +90,7 @@ test('format callback', function(t) {
         [ ' [0,1,2]',           {end:0x45},                 [ '[@1','N1@2','N1@4','N1@6',']@7','E@8']             ],
         [ '["a", "bb"] ',       null,                       [ '[@0','S3@1','S4@6',']@10' ]                        ],
         [ '"x", 4\n, null, 3.2e5 , true, false',      null, [ 'S3@0','N1@5','n@9','N5@15','t@23', 'f@29']         ],
-        [ '{"a",1.3 \n\t{ "b" : ["v", "w"]\n}\t\n }', null, [ '{@0','S3@1','N3@5','{@11','S3@13','[@19','S3@20','S3@25',']@28','}@30','}@34' ] ],
+        [ '["a",1.3 \n\t{ "b" : ["v", "w"]\n}\t\n ]', null, [ '[@0','S3@1','N3@5','{@11','K3@13:[@19','S3@20','S3@25',']@28','}@30',']@34' ] ],
     ], function(input, opt) {
         var hec = t.hector()
         var cb = format_callback({log: hec})
