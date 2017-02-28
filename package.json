@@ -1,7 +1,7 @@
 {
   "name": "qb-json-tok",
-  "version": "1.0.3",
-  "description": "Fast (~300 MB/sec) and light (~1.7 kb) JSON/UTF-8 tokenizer for creating custom parsers",
+  "version": "1.0.4",
+  "description": "Fast (~300 MB/sec) and light (~1.3 kb) JSON/UTF-8 tokenizer for creating custom parsers",
   "devDependencies": {
     "qb-utf8-ez": "^2.0.3",
     "tape": "^4.6.3",

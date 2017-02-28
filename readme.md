@@ -1,6 +1,6 @@
 # qb-json-tok
 
-Fast (~300 MB/sec) and light (1.7 kb) tokenizer for custom JSON/UTF-8 parsers.
+Fast (~300 MB/sec) and light (1.3 kb) tokenizer for custom JSON/UTF-8 parsers.
 
 qb-json-tok allows flexibility and efficiency by performing minimum processing 
 and leaving heavy-lifting, such as value decoding, as optional work for the callback (delegate)
