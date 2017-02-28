@@ -82,9 +82,9 @@ Here is an example copied from **test.js** showing how to write a callback that 
     > S4@8          // 4-byte string (including quotes) at 8
     > t@14          // true at 14 (always 4 bytes)
     > {@20          // start object at 20
-    > K3@21:N1@26   // 3-byte key at 21: 1 byte number at 34
-    > K3@29:N1@34   ...
-    > }@35
-    > ]@37
+    > K3@21:N1@26   // 3-byte key at 21: 1 byte number at 26
+    > K3@29:N1@34   // 3-byte key at 29, 1 byte number at 34
+    > }@35          // end-object at 35
+    > ]@37          // end-array at 37
     > E@38          // end of parsing at 38
 
