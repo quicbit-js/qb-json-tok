@@ -1,7 +1,3 @@
-function parse_err(msg, buf, idx) {
-    throw Error(msg + ': ' + String.fromCharCode(buf[idx]) + ' at ' + idx)
-}
-
 function tokenize(buf, cb, opt) {
     var tok = 0             // current token
     var idx = 0             // current index offset into buf
@@ -9,7 +5,8 @@ function tokenize(buf, cb, opt) {
     var vi = -1             // value start index
     var si = -1             // previous string index   (may be a key or string value)
     var slen = -1           // previous string length  (may be a key or string value)
-    var prev_tok = -1
+    var prev_tok = 0
+    var err_info = null
     main_loop: while(idx < lim) {
         prev_tok = tok
         tok = buf[idx]
@@ -46,7 +43,9 @@ function tokenize(buf, cb, opt) {
                 while(true) {
                     while(buf[++idx] !== 34) {  // " QUOTE
                         if(idx === lim) {
-                            parse_err('non-terminated string', buf, idx-1)
+                            err_info = { tok: 34, msg: 'unterminated string' }
+                            tok = 0
+                            break tok_switch
                         }
                     }
                     if(buf[idx - 1] !== 92) {   // \  BACKSLASH
@@ -73,7 +72,7 @@ function tokenize(buf, cb, opt) {
             case 48:case 49:case 50:case 51:case 52:case 53:case 54:case 55:case 56:case 57:    // 0-9
             case 45:                                                                            // '-'
                 vi = idx
-                tok = 0xF1                  // NUMBER
+                tok = 78                    // NUMBER  'N'
                 while(++idx < lim) {
                     switch(buf[idx]) {
                         case 32:            // SPACE
@@ -95,7 +94,10 @@ function tokenize(buf, cb, opt) {
                         case 101: // e
                             break
                         default:
-                            parse_err('illegal number character', buf, idx)
+                            idx++
+                            err_info = { tok: 78, msg: 'illegal number' }
+                            tok = 0
+                            break tok_switch;
                     }
                 }
                 break
@@ -103,37 +105,47 @@ function tokenize(buf, cb, opt) {
                 idx++
                 continue
             default:
-                parse_err('unexpected character', buf, idx)
+                vi = idx++
+                err_info = { tok: 0, msg: 'unexpected character' }
+                tok = 0
         }
         var stop = false
         if(si === -1) {
             // value (something other than string)
-            stop = cb(buf, -1, 0, tok, vi, idx - vi)
+            stop = cb(buf, -1, 0, tok, vi, idx - vi, err_info)
         } else {
-            if(prev_tok === 58) {                               // :  COLON
-                // key-value pair
-                stop = cb(buf, si, slen, tok, vi, idx - vi)
+            // string...
+            if(prev_tok === 58) {                               // COLON
+                // string, ':', ...
+                stop = cb(buf, si, slen, tok, vi, idx - vi, err_info)
             } else {
-                // string and token
+                // string, non-colon
                 stop = cb(buf, -1, 0, 34, si, slen)             // 34 STRING (QUOTE)
                 if(stop) {
                     return si + slen
                 }
-                stop = cb(buf, -1, 0, tok, vi, idx - vi)
+                // value.
+                // in valid JSON, this would is never a key, because
+                // { string:string, string:string, ... are consumed in pairs.
+                // [ string, string, string:string     is illegal
+                stop = cb( buf, -1, 0, tok, vi, idx - vi, err_info )
             }
-            si = slen = -1
+            si = -1; slen = 0
         }
         if(stop) {
             return idx
         }
-    }  // end tokenLoop: while(idx < lim) {...
+        if(err_info) {
+            err_info = null
+        }
+    }  // end main_loop: while(idx < lim) {...
     if(si !== -1) {
-        cb(buf, -1, 0, 34, si, slen) // push out pending string (34 = QUOTE) as a value - this would not work for truncation mode
+        cb(buf, -1, 0, 34, si, slen, err_info) // push out pending string (34 = QUOTE) as a value - this would not work for truncation mode
     }
     if(opt && opt.end) {
         cb(buf, -1, 0, opt.end, lim, 0)        // END
     }
-    return idx  // return new position
+    return idx
 }
 
 module.exports = tokenize

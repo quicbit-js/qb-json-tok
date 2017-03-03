@@ -26,21 +26,12 @@ test('callback stop', function(t) {
 
 })
 
-test('errors', function(t) {
-    t.tableAssert([
-        [ 'buf',                                   'exp'    ],
-        [ '0*',                                     /illegal number/        ],
-        [ '"abc"%',                                 /unexpected character/  ],
-        [ '"abc',                                   /non-terminated string/  ],
-        // [ [0x22,0x83,0x22],                         /non-terminated string/  ],
-    ], function(buf) {
-        tokenize(utf8.buffer(buf), t.hector())
-    }, {assert: 'throws'})
-})
-
 // useful token constants:
-var STRING = 0x22       // "  (double-quote)
-var NUMBER = 0xF1       // token for JSON number
+var ERROR  = 0        // ERROR          (parser-defined)
+var STRING = 34       // "  QUOTE       (parser-defined)
+var NUMBER = 78       // 'N' NUMBER     (parser-defined)
+var END    = 69       // 'E' END        (our chosen end token:   option.end)
+
 // other tokens are intuitive - they are the same char code as the first byte parsed
 // 't' for true
 // 'f' for false
@@ -52,20 +43,26 @@ var NUMBER = 0xF1       // token for JSON number
 
 function format_callback(opt) {
     var log = opt.log || console.log;
+    var halt_on_err = opt.halt_on_err == null || opt.halt_on_err
 
-    return function format_callback(buf, key_off, key_len, tok, val_off, val_len) {
+    return function format_callback(buf, key_off, key_len, tok, val_off, val_len, err) {
         var val_str;
+        var stop = false
         switch(tok) {
-            case STRING:  val_str = 'S' + val_len; break;
-            case NUMBER:  val_str = 'N' + val_len; break;
-            default:      val_str = String.fromCharCode(tok);
+            case STRING: val_str = 'S' + val_len + '@' + val_off; break;
+            case NUMBER: val_str = 'N' + val_len + '@' + val_off; break;
+            case ERROR:
+                val_str = ('!' + val_len + '@' + val_off + ': ' + JSON.stringify(err));
+                stop = halt_on_err;
+                break;
+            default:     val_str = String.fromCharCode(tok) + '@' + val_off;
         }
-        val_str += '@' + val_off;
         if(key_off === -1) {
             log(val_str);                                           // value only
         } else {
             log('K' + key_len + '@' + key_off + ':' + val_str);     // key and value
         }
+        return stop
     }
 }
 
@@ -76,25 +73,44 @@ function format_callback(opt) {
 //     'N3@5' means Number, length 3 bytes, at offset 5
 //     'n@9'  means null at offset 9                         (null length is always 4 bytes)
 //     't@23' means true at offset 23 ...
-test('format callback', function(t) {
-    t.tableAssert([
-        [ 'input',              'opt',                       'exp'],
-        [ '"\\""',              null,                       [ 'S4@0' ]                                           ],
-        [ '{"a":1}',             null,                      [ '{@0','K3@1:N1@5','}@6' ]                         ],
-        [ '{"a" :1}',            null,                      [ '{@0','K3@1:N1@6','}@7' ]                         ],
-        [ '{"a": 1}',            null,                      [ '{@0','K3@1:N1@6','}@7' ]                         ],
-        [ '-3.05',              null,                       [ 'N5@0' ]                                            ],
-        [ '"x"',                null,                       [ 'S3@0']                                             ],
-        [ '\t\t"x\\a\r"  ',     null,                       [ 'S6@2']                                             ],
-        [ '"\\"x\\"a\r\\""',    null,                       [ 'S11@0']                                            ],
-        [ ' [0,1,2]',           {end:0x45},                 [ '[@1','N1@2','N1@4','N1@6',']@7','E@8']             ],
-        [ '["a", "bb"] ',       null,                       [ '[@0','S3@1','S4@6',']@10' ]                        ],
-        [ '"x", 4\n, null, 3.2e5 , true, false',      null, [ 'S3@0','N1@5','n@9','N5@15','t@23', 'f@29']         ],
-        [ '["a",1.3 \n\t{ "b" : ["v", "w"]\n}\t\n ]', null, [ '[@0','S3@1','N3@5','{@11','K3@13:[@19','S3@20','S3@25',']@28','}@30',']@34' ] ],
-    ], function(input, opt) {
-        var hec = t.hector()
-        var cb = format_callback({log: hec})
-        tokenize(utf8.buffer(input), cb, opt)
-        return hec.arg(0)
-    })
+test.only('tokenize', function(t) {
+    t.tableAssert(
+        [
+            [ 'input',             'tok_opt',    'cb_opt',              'exp'],
+            [ '{"a":1,"b:2,"c":3}', null,  {halt_on_err:0}, [
+                '{@0',
+                'K3@1:N1@5',
+                'S6@7',
+                '!1@13: {"tok":0,"msg":"unexpected character"}',
+                '!4@14: {"tok":34,"msg":"unterminated string"}'
+            ]],
+            [ '"\\""',              null,       null,            [ 'S4@0' ]                                           ],
+            [ '{"a":1}',             null,      null,            [ '{@0','K3@1:N1@5','}@6' ]                         ],
+            [ '{"a" :1}',            null,      null,            [ '{@0','K3@1:N1@6','}@7' ]                         ],
+            [ '{"a": 1}',            null,      null,            [ '{@0','K3@1:N1@6','}@7' ]                         ],
+            [ '-3.05',              null,       null,            [ 'N5@0' ]                                            ],
+            [ '"x"',                null,       null,            [ 'S3@0']                                             ],
+            [ '\t\t"x\\a\r"  ',     null,       null,            [ 'S6@2']                                             ],
+            [ '"\\"x\\"a\r\\""',    null,       null,            [ 'S11@0']                                            ],
+            [ ' [0,1,2]',           {end:END},  null,            [ '[@1','N1@2','N1@4','N1@6',']@7','E@8']             ],
+            [ '["a", "bb"] ',       null,       null,            [ '[@0','S3@1','S4@6',']@10' ]                        ],
+            [ '"ab',                null,       null,            [ '!3@0: {"tok":34,"msg":"unterminated string"}' ]  ],
+            [ '"abc"%',             null,       null,            [ 'S5@0', '!1@5: {"tok":0,"msg":"unexpected character"}' ]  ],
+            [ '0*',                 null,       null,            [ '!2@0: {"tok":78,"msg":"illegal number"}'  ]  ],
+            [ '{"a":3^6}',          null,       null,            [ '{@0', 'K3@1:!2@5: {"tok":78,"msg":"illegal number"}' ]  ],
+            [ '"ab',                null,       {halt_on_err:0}, [ '!3@0: {"tok":34,"msg":"unterminated string"}' ]  ],
+            [ '0*',                 null,       {halt_on_err:0}, [ '!2@0: {"tok":78,"msg":"illegal number"}'  ]  ],
+            [ '{"a":3^6}',          null,       {halt_on_err:0}, [ '{@0', 'K3@1:!2@5: {"tok":78,"msg":"illegal number"}', 'N1@7', '}@8' ]  ],
+            [ '"x", 4\n, null, 3.2e5 , true, false',      null, null,   [ 'S3@0','N1@5','n@9','N5@15','t@23', 'f@29']         ],
+            [ '["a",1.3 \n\t{ "b" : ["v", "w"]\n}\t\n ]', null, null,   [ '[@0','S3@1','N3@5','{@11','K3@13:[@19','S3@20','S3@25',']@28','}@30',']@34' ] ],
+        ],
+        function(input, tok_opt, cb_opt) {
+            cb_opt = cb_opt || {}
+            var hector = t.hector()
+            cb_opt.log = hector
+            var cb = format_callback(cb_opt)
+            tokenize(utf8.buffer(input), cb, tok_opt)
+            return hector.arg(0)
+        }
+    )
 })
