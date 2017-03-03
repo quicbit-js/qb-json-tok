@@ -75,16 +75,6 @@ function tokenize(buf, cb, opt) {
                 tok = 78                    // NUMBER  'N'
                 while(++idx < lim) {
                     switch(buf[idx]) {
-                        case 32:            // SPACE
-                        case 9:             // TAB
-                        case 10:            // NL
-                        case 13:            // CR
-                        case 44:            // ,    COMMA
-                        case 123:           // {    OBJECT START
-                        case 125:           // }    OBJECT END
-                        case 91:            // [    ARRAY START
-                        case 93:            // ]    ARRAY END
-                            break tok_switch
                         // skip all possibly-valid characters - as fast as we can
                         case 48:case 49:case 50:case 51:case 52:case 53:case 54:case 55:case 56:case 57:    // 0-9
                         case 43:  // +
@@ -94,9 +84,6 @@ function tokenize(buf, cb, opt) {
                         case 101: // e
                             break
                         default:
-                            idx++
-                            err_info = { tok: 78, msg: 'illegal number' }
-                            tok = 0
                             break tok_switch;
                     }
                 }

@@ -77,13 +77,6 @@ test.only('tokenize', function(t) {
     t.tableAssert(
         [
             [ 'input',             'tok_opt',    'cb_opt',              'exp'],
-            [ '{"a":1,"b:2,"c":3}', null,  {halt_on_err:0}, [
-                '{@0',
-                'K3@1:N1@5',
-                'S6@7',
-                '!1@13: {"tok":0,"msg":"unexpected character"}',
-                '!4@14: {"tok":34,"msg":"unterminated string"}'
-            ]],
             [ '"\\""',              null,       null,            [ 'S4@0' ]                                           ],
             [ '{"a":1}',             null,      null,            [ '{@0','K3@1:N1@5','}@6' ]                         ],
             [ '{"a" :1}',            null,      null,            [ '{@0','K3@1:N1@6','}@7' ]                         ],
@@ -94,15 +87,25 @@ test.only('tokenize', function(t) {
             [ '"\\"x\\"a\r\\""',    null,       null,            [ 'S11@0']                                            ],
             [ ' [0,1,2]',           {end:END},  null,            [ '[@1','N1@2','N1@4','N1@6',']@7','E@8']             ],
             [ '["a", "bb"] ',       null,       null,            [ '[@0','S3@1','S4@6',']@10' ]                        ],
-            [ '"ab',                null,       null,            [ '!3@0: {"tok":34,"msg":"unterminated string"}' ]  ],
-            [ '"abc"%',             null,       null,            [ 'S5@0', '!1@5: {"tok":0,"msg":"unexpected character"}' ]  ],
-            [ '0*',                 null,       null,            [ '!2@0: {"tok":78,"msg":"illegal number"}'  ]  ],
-            [ '{"a":3^6}',          null,       null,            [ '{@0', 'K3@1:!2@5: {"tok":78,"msg":"illegal number"}' ]  ],
-            [ '"ab',                null,       {halt_on_err:0}, [ '!3@0: {"tok":34,"msg":"unterminated string"}' ]  ],
-            [ '0*',                 null,       {halt_on_err:0}, [ '!2@0: {"tok":78,"msg":"illegal number"}'  ]  ],
-            [ '{"a":3^6}',          null,       {halt_on_err:0}, [ '{@0', 'K3@1:!2@5: {"tok":78,"msg":"illegal number"}', 'N1@7', '}@8' ]  ],
             [ '"x", 4\n, null, 3.2e5 , true, false',      null, null,   [ 'S3@0','N1@5','n@9','N5@15','t@23', 'f@29']         ],
             [ '["a",1.3 \n\t{ "b" : ["v", "w"]\n}\t\n ]', null, null,   [ '[@0','S3@1','N3@5','{@11','K3@13:[@19','S3@20','S3@25',']@28','}@30',']@34' ] ],
+
+            // errors
+            [ '"ab',                null,       null,            [ '!3@0: {"tok":34,"msg":"unterminated string"}' ]  ],
+            [ '"abc"%',             null,       null,            [ 'S5@0', '!1@5: {"tok":0,"msg":"unexpected character"}' ]  ],
+            [ '0*',                 null,       null,            [ 'N1@0', '!1@1: {"tok":0,"msg":"unexpected character"}' ]  ],
+            [ '{"a":3^6}',          null,       null,            [ '{@0', 'K3@1:N1@5', '!1@6: {"tok":0,"msg":"unexpected character"}' ]  ],
+            [ '{"a":^}',            null,       null,            [ '{@0', 'K3@1:!1@5: {"tok":0,"msg":"unexpected character"}' ]  ],
+            [ '"ab',                null,       {halt_on_err:0}, [ '!3@0: {"tok":34,"msg":"unterminated string"}' ]  ],
+            [ '0*',                 null,       {halt_on_err:0}, [ 'N1@0', '!1@1: {"tok":0,"msg":"unexpected character"}' ] ],
+            [ '{"a":3^6}',          null,       {halt_on_err:0}, [ '{@0', 'K3@1:N1@5', '!1@6: {"tok":0,"msg":"unexpected character"}', 'N1@7', '}@8' ]  ],
+            [ '{"a":1,"b:2,"c":3}', null,  {halt_on_err:0}, [
+                '{@0',
+                'K3@1:N1@5',
+                'S6@7',
+                '!1@13: {"tok":0,"msg":"unexpected character"}',
+                '!4@14: {"tok":34,"msg":"unterminated string"}'
+            ]],
         ],
         function(input, tok_opt, cb_opt) {
             cb_opt = cb_opt || {}
