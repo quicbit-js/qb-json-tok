@@ -58,7 +58,7 @@ function tokenize(buf, cb, opt) {
                     // set string index (potential key)
                     si = vi
                     slen = idx - si
-                    continue  // main_loop: next tokens will yield either value or key/value
+                    continue  // main_loop: next tokens could be :-and-value or something else
                 }
                 break
             case 110:           // 'n'  null
@@ -107,16 +107,15 @@ function tokenize(buf, cb, opt) {
         }
         var stop = false
         if(si === -1) {
-            // non-string value
-            stop = cb(buf, -1, 0, tok, vi, idx - vi, buf)
+            // value (something other than string)
+            stop = cb(buf, -1, 0, tok, vi, idx - vi)
         } else {
-            // string value plus subsequent token
-            if(prev_tok === 58) {   // :  COLON
-                // key and value
+            if(prev_tok === 58) {                               // :  COLON
+                // key-value pair
                 stop = cb(buf, si, slen, tok, vi, idx - vi)
             } else {
-                // string value and non-colon token (not a key-value)
-                stop = cb(buf, -1, 0, 34, si, slen)            // 34 = QUOTE/STRING
+                // string and token
+                stop = cb(buf, -1, 0, 34, si, slen)             // 34 STRING (QUOTE)
                 if(stop) {
                     return si + slen
                 }
@@ -129,7 +128,7 @@ function tokenize(buf, cb, opt) {
         }
     }  // end tokenLoop: while(idx < lim) {...
     if(si !== -1) {
-        cb(buf, -1, 0, 34, si, slen) // push out pending string (34 = QUOTE/STRING ) as a value - this would not work for truncation mode
+        cb(buf, -1, 0, 34, si, slen) // push out pending string (34 = QUOTE) as a value - this would not work for truncation mode
     }
     if(opt && opt.end) {
         cb(buf, -1, 0, opt.end, lim, 0)        // END
