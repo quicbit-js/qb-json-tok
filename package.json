@@ -20,6 +20,10 @@
     "parse",
     "tokenize",
     "fast",
+    "partial files",
+    "error",
+    "repair",
+    "recovery",
     "small"
   ],
   "author": "Matthew Voss",
