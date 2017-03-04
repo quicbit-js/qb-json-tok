@@ -11,7 +11,7 @@ and leaving heavy-lifting, such as value decoding, as optional work for the call
 
 ## tokenize(buffer, callback, options)
 
-##API CHANGE ALERT (version 1.x -> 2.x)
+## API CHANGE ALERT (version 1.x -> 2.x)
 
 **In version 2.0, returns codes and error handling changed as follows:**
   
@@ -35,6 +35,7 @@ ASCII character like all the other ()non-error) tokens.
   
   
 ## API
+
 The tokenizer is just a function with three inputs:
 
     buffer:    A UTF-8 encoded buffer containing ANY JSON value such as an object, quoted
@@ -55,7 +56,7 @@ The tokenizer is just a function with three inputs:
             tok:     the token where the error occured (unterminated string error will have tok: 34) OR 
                      zero if the token was invalid/unknown.
                      
-        return:      zero - will cause processing to immediately terminate.
+        returns:     zero - will cause processing to immediately terminate.
                      positive number - will cause processing to continue at that returned offset
                      anything else (undefined, null, negative number) - will cause processing to continue.
                      
@@ -63,7 +64,7 @@ The tokenizer is just a function with three inputs:
                      the return token for error (zero) and return zero from the function.
     
     options:
-        end:    If set, then this value will be passed to callback as the 'token' when parsing completes.
+        end:        If set, then this value will be passed to callback as the 'token' when parsing completes.
 
 ## Example
 
