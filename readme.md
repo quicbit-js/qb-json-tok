@@ -11,24 +11,56 @@ and leaving heavy-lifting, such as value decoding, as optional work for the call
 
 ## tokenize(buffer, callback, options)
 
+##API CHANGE ALERT (version 1.x -> 2.x)
+
+**In version 2.0, returns codes and error handling changed as follows:**
+  
+1. 0xF1 is no longer used for Number token.  ASCII 78 ('N') is used instead.
+    
+2. Exceptions are no longer thrown during processing.  Instead, a 0 (zero) token
+   is passed to the callback with value index and length showing the location and span of
+   the error.
+
+3. The callback return value is no longer simply a truthy value that indicates
+   whether to stop.  The return value, if greater than zero, is the index
+   at which to continue processing.  If zero, processing will halt.  If negative
+   or anyting else (null/undefined) processing continues.
+    
+Changes 2 and 3 were important in that they allowed the tokenizer to stay simple and fast, 
+while giving a fine degree of control over unexpected sequences in a way that aligns 
+naturally with the handling in the callback.  All that is required to manage errors is to 
+add an <code>if( token === 0 )</code> or <code>case 0:</code> statement to the callback.  The change of the
+Number token to 'N' also simplified handling of output since, unlike 0xF1, it mapped naturally to an 
+ASCII character like all the other ()non-error) tokens.
+  
+  
+## API
 The tokenizer is just a function with three inputs:
 
     buffer:    A UTF-8 encoded buffer containing ANY JSON value such as an object, quoted
                string, array, or valid JSON number.  IOW, it doesn't have to be a {...} object.
                
     callback:  A function called for each token encountered.
-               Returning a truthy value from the function will halt processing.
-               Takes these parameters:
     
-        function(
-            buffer:      the buffer being parsed
-            keyIndex:    index start of a key (in a key/value pair), or -1 if this is a stand-alone or array value
-            keyLength:   length of key in UTF-8 bytes (in a key/value pair) or 0 if this is a stand-alone or array value
-            token:       integer representing token encountered.  In almost all cases, this is the same as the 
-                         first character encountered.  'n' for null, 't' for true, '{' for object start...
-            valIndex:    index start of a stand-alone value or the value in a key/value pair
-            valLength:   length of value in UTF-8 bytes - a stand alone value or value in a key/value pair
-        )
+        buffer:      the buffer being parsed
+        keyIndex:    index start of a key (in a key/value pair), or -1 if this is a stand-alone or array value
+        keyLength:   length of key in UTF-8 bytes (in a key/value pair) or 0 if this is a stand-alone or array value
+        token:       integer representing token encountered.  In almost all cases, this is the same as the 
+                     first character encountered.  'n' for null, 't' for true, '{' for object start...
+        valIndex:    index start of a stand-alone value or the value in a key/value pair
+        valLength:   length of value in UTF-8 bytes - a stand alone value or value in a key/value pair
+        
+        err:         If there is an error, err will be an object containing:
+            msg:     the error message
+            tok:     the token where the error occured (unterminated string error will have tok: 34) OR 
+                     zero if the token was invalid/unknown.
+                     
+        return:      zero - will cause processing to immediately terminate.
+                     positive number - will cause processing to continue at that returned offset
+                     anything else (undefined, null, negative number) - will cause processing to continue.
+                     
+                     NOTE: as of version 2.0, if you want to halt processing on error, you must check
+                     the return token for error (zero) and return zero from the function.
     
     options:
         end:    If set, then this value will be passed to callback as the 'token' when parsing completes.
@@ -40,13 +72,16 @@ and without overhead.  Validating numbers and unicode escape sequences, keeping 
 validating open/closed objects and arrays, searching for key patterns...  any of that is 
 up to the callback.
 
-Here is an example copied from **test.js** showing how to write a callback that outputs token summary info:
+Here is an example taken from **example.js** showing how to write a function that outputs 
+a token summary:
 
-    tokenize = require('qb-json-tok');
+    var tokenize = require('qb-json-tok');
+    var utf8 = require('qb-utf8-ez');           // to create UTF-8 from strings
     
     // useful token constants:
-    var STRING = 0x22       // "  (double-quote)
-    var NUMBER = 0xF1       // token for JSON number
+    var STRING = 34;       // "  (double-quote)
+    var NUMBER = 78;       // 'N' token for JSON number
+    var ERROR  = 0;        // ERROR occured - details will be in the err_info object
     // other tokens are intuitive - they are the same char code as the first byte parsed
     // 't' for true
     // 'f' for false
@@ -56,35 +91,120 @@ Here is an example copied from **test.js** showing how to write a callback that 
     // '[' for array start
     // ...
     
-    function format_callback(buf, key_off, key_len, tok, val_off, val_len) {
-        var val_str
-        switch(tok) {
-            case STRING:  val_str = 'S' + val_len; break;
-            case NUMBER:  val_str = 'N' + val_len; break;
-            default:      val_str = String.fromCharCode(tok);
+    function print_tokens(comment, input, opt) {
+        opt = opt || {}
+        var recover_from
+        var cb = function(buf, key_off, key_len, tok, val_off, val_len, err_info) {
+            var val_str;
+            switch(tok) {
+                case STRING: val_str = 'S' + val_len + '@' + val_off; break;
+                case NUMBER: val_str = 'N' + val_len + '@' + val_off; break;
+                case ERROR:  val_str = '!' + val_len + '@' + val_off + ': ' + JSON.stringify(err_info); break;
+                default:     val_str = String.fromCharCode(tok) + '@' + val_off;
+            }
+            if(key_off === -1) {
+                console.log(val_str);                                           // value only
+            } else {
+                console.log('K' + key_len + '@' + key_off + ':' + val_str);     // key and value
+            }
+            if(tok === ERROR) {
+                switch(opt.on_error) {
+                    case 'stop': return 0
+                    case 'backup': return recover_from   // a contrived / simple recovery strategy that is more effective at fixing mismatched quotes.
+                    default: return -1
+                }
+            }
+            recover_from = val_off + (val_len === 1 ? 1 : val_len -1)
         }
-        val_str += '@' + val_off
-        if(key_off === -1) {
-            // value only
-            console.log(val_str);
-        } else {
-            // key and value
-            console.log('K' + key_len + '@' + key_off + ':' + val_str);
-        }
-    }
-
-    var utf8 = require('qb-utf8-ez');           // to create UTF-8 from strings
     
-    tokenize(utf8.buffer('[ -2.3, "bb", true, {"a": 1, "b": 2} ]'), format_callback, {end:0x45})
-        
-    > [@0           // start array at 0
-    > N4@2          // 4-byte number at 2                    
-    > S4@8          // 4-byte string (including quotes) at 8
-    > t@14          // true at 14 (always 4 bytes)
-    > {@20          // start object at 20
-    > K3@21:N1@26   // 3-byte key at 21: 1 byte number at 26
-    > K3@29:N1@34   // 3-byte key at 29, 1 byte number at 34
-    > }@35          // end-object at 35
-    > ]@37          // end-array at 37
-    > E@38          // end of parsing at 38
+        console.log(comment)
+        console.log( "INPUT: '" + input + "'", opt || '')
+        tokenize( utf8.buffer(input), cb, opt )
+        console.log('')
+    }
+    
+And here is some example output of our formatting callback:
 
+    print_tokens( 'simple object', '{"a": 1, "b": 2}' );
+    > simple object
+    > INPUT: '{"a": 1, "b": 2}' {}
+    > {@0                           // start object at 0
+    > K3@1:N1@6                     // 3-byte key at 1 : 1-byte number at 6 
+    > K3@9:N1@14                    // 3-byte key at 9 : 1-byte number at 14 
+    > }@15                          // end object at 15                                            
+    
+    print_tokens( 'stand-alone value', ' 7.234556    ' );
+    > stand-alone value
+    > INPUT: ' 7.234556    ' {}
+    > N8@1                          // 8-byte number at 1
+
+    print_tokens( 'stand-alone incomplete value with the "end" set to \'E\'', '[ -2.3, "hi \\\"there\\\""', { end: 69 } );
+    > stand-alone incomplete value with the "end" set to 'E'
+    > INPUT: '[ -2.3, "hi \"there\""' { end: 69 }
+    > [@0                           // start array at 0
+    > N4@2                          // 4-byte number at 2
+    > S14@8                         // 14-byte string at 8
+    > E@22                          // end buffer at 22
+    
+    print_tokens( 'invalid number - stop on error',     '[ -2.3, 5~, "bb", true, {"a": 1, "b": 2} ]',  { on_error: 'stop' } );
+    > invalid number - stop on error
+    > INPUT: '[ -2.3, 5~, "bb", true, {"a": 1, "b": 2} ]' { on_error: 'stop' }
+    > [@0                                           // array start at 0
+    > N4@2                                          // 4-byte number at 2
+    > N1@8                                          // 1-byte number at 8
+    > !1@9: {"tok":0,"msg":"unexpected character"}  // unexpected character at 9
+    
+    print_tokens( 'invalid number - continue on error', '[ -2.3, 5~, "bb", true, {"a": 1, "b": 2} ]',  { on_error: 'continue' } );
+    > invalid number - continue on error
+    > INPUT: '[ -2.3, 5~, "bb", true, {"a": 1, "b": 2} ]' { on_error: 'continue' }
+    > [@0
+    > N4@2
+    > N1@8
+    > !1@9: {"tok":0,"msg":"unexpected character"}
+    > S4@12
+    > t@18
+    > {@24
+    > K3@25:N1@30
+    > K3@33:N1@38
+    > }@39
+    > ]@41
+    
+Here we show two strategies for dealing with errors.  The simple strategy continues far 
+ahead... but notice how with a quoting error, this creates a mis-alignment that continues to 
+break the parsing.
+
+    print_tokens( 'invalid quote - continue',                '[ -2.3, "aaa, "bb", true, {"a": 1, "b": 2} ]',    { on_error: 'continue' } );
+    > invalid quote - continue
+    > INPUT: '[ -2.3, "aaa, "bb", true, {"a": 1, "b": 2} ]' { on_error: 'continue' }
+    > [@0
+    > N4@2
+    > S7@8
+    > !1@15: {"tok":0,"msg":"unexpected character"}
+    > !1@16: {"tok":0,"msg":"unexpected character"}
+    > S11@17
+    > !1@28: {"tok":0,"msg":"unexpected character"}
+    > S7@29
+    > !1@36: {"tok":0,"msg":"unexpected character"}
+    > !7@37: {"tok":34,"msg":"unterminated string"}
+    
+The simple backup strategy works great to recover from this quote error:
+
+    print_tokens( 'invalid quote - continue with backup', '[ -2.3, "aaa, "bb", true, {"a": 1, "b": 2} ]',    { on_error: 'backup' } );
+    > invalid quote - continue with backup
+    > INPUT: '[ -2.3, "aaa, "bb", true, {"a": 1, "b": 2} ]' { on_error: 'backup' }
+    > [@0
+    > N4@2
+    > S7@8
+    > !1@15: {"tok":0,"msg":"unexpected character"}
+    > S4@14
+    > t@20
+    > {@26
+    > K3@27:N1@32
+    > K3@35:N1@40
+    > }@41
+    > ]@43
+    
+... but it may not work
+well on other types of errors.  If your system needs to handle smart-recovery from bad
+files, the speed of the tokenizer could allow many strategies to be actively tried across
+a large sample region and choose the best recovery option of a variety tried.

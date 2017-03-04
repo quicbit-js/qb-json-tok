@@ -96,32 +96,39 @@ function tokenize(buf, cb, opt) {
                 err_info = { tok: 0, msg: 'unexpected character' }
                 tok = 0
         }
-        var stop = false
+        var ret = -1
         if(si === -1) {
             // value (something other than string)
-            stop = cb(buf, -1, 0, tok, vi, idx - vi, err_info)
+            ret = cb(buf, -1, 0, tok, vi, idx - vi, err_info)
         } else {
             // string...
-            if(prev_tok === 58) {                               // COLON
+            if(prev_tok === 58) {                                       // COLON
                 // string, ':', ...
-                stop = cb(buf, si, slen, tok, vi, idx - vi, err_info)
+                ret = cb(buf, si, slen, tok, vi, idx - vi, err_info)
             } else {
                 // string, non-colon
-                stop = cb(buf, -1, 0, 34, si, slen)             // 34 STRING (QUOTE)
-                if(stop) {
-                    return si + slen
+                ret = cb(buf, -1, 0, 34, si, slen)                      // 34 STRING (QUOTE)
+                if(ret > 0) {
+                    idx = ret || idx; si = -1; slen = 0; continue       // cb requested index
+                } else if (ret === 0) {
+                    return si + slen                                    // cb requested stop
                 }
-                // value.
-                // in valid JSON, this would is never a key, because
-                // { string:string, string:string, ... are consumed in pairs.
-                // [ string, string, string:string     is illegal
-                stop = cb( buf, -1, 0, tok, vi, idx - vi, err_info )
+                // value
+                // in valid JSON, we don't have to worry about this value being
+                // a key because
+                // { string:string, string:string, ... are consumed in pairs and
+                // [ string, string, string:string     doesn't happen
+                ret = cb( buf, -1, 0, tok, vi, idx - vi, err_info )
             }
             si = -1; slen = 0
         }
-        if(stop) {
-            return idx
+
+        if(ret > 0) {
+            idx = ret || idx; si = -1; slen = 0; continue               // cb requested index
+        } else if (ret === 0) {
+            return idx                                                  // cb requested stop
         }
+
         if(err_info) {
             err_info = null
         }

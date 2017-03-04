@@ -43,17 +43,17 @@ var END    = 69       // 'E' END        (our chosen end token:   option.end)
 
 function format_callback(opt) {
     var log = opt.log || console.log;
-    var halt_on_err = opt.halt_on_err == null || opt.halt_on_err
+    var return_on_err = opt.ret_on_err
 
     return function format_callback(buf, key_off, key_len, tok, val_off, val_len, err) {
         var val_str;
-        var stop = false
+        var ret = -1    // returning 0 halts process, > 0 continues at that index.  other values (neg, undefined,...) continue as normal.
         switch(tok) {
             case STRING: val_str = 'S' + val_len + '@' + val_off; break;
             case NUMBER: val_str = 'N' + val_len + '@' + val_off; break;
             case ERROR:
                 val_str = ('!' + val_len + '@' + val_off + ': ' + JSON.stringify(err));
-                stop = halt_on_err;
+                ret = return_on_err;
                 break;
             default:     val_str = String.fromCharCode(tok) + '@' + val_off;
         }
@@ -62,7 +62,7 @@ function format_callback(opt) {
         } else {
             log('K' + key_len + '@' + key_off + ':' + val_str);     // key and value
         }
-        return stop
+        return ret  // null/undefined/<0 will continue.  0 will halt.  Any positive number will continue parsing at that index
     }
 }
 
@@ -92,14 +92,16 @@ test.only('tokenize', function(t) {
 
             // errors
             [ '"ab',                null,       null,            [ '!3@0: {"tok":34,"msg":"unterminated string"}' ]  ],
-            [ '"abc"%',             null,       null,            [ 'S5@0', '!1@5: {"tok":0,"msg":"unexpected character"}' ]  ],
+            [ '"abc"%',             null,       {ret_on_err:0},            [ 'S5@0', '!1@5: {"tok":0,"msg":"unexpected character"}' ]  ],
             [ '0*',                 null,       null,            [ 'N1@0', '!1@1: {"tok":0,"msg":"unexpected character"}' ]  ],
-            [ '{"a":3^6}',          null,       null,            [ '{@0', 'K3@1:N1@5', '!1@6: {"tok":0,"msg":"unexpected character"}' ]  ],
-            [ '{"a":^}',            null,       null,            [ '{@0', 'K3@1:!1@5: {"tok":0,"msg":"unexpected character"}' ]  ],
-            [ '"ab',                null,       {halt_on_err:0}, [ '!3@0: {"tok":34,"msg":"unterminated string"}' ]  ],
-            [ '0*',                 null,       {halt_on_err:0}, [ 'N1@0', '!1@1: {"tok":0,"msg":"unexpected character"}' ] ],
-            [ '{"a":3^6}',          null,       {halt_on_err:0}, [ '{@0', 'K3@1:N1@5', '!1@6: {"tok":0,"msg":"unexpected character"}', 'N1@7', '}@8' ]  ],
-            [ '{"a":1,"b:2,"c":3}', null,  {halt_on_err:0}, [
+            [ '{"a":3^6}',          null,       {ret_on_err:0},    [ '{@0', 'K3@1:N1@5', '!1@6: {"tok":0,"msg":"unexpected character"}' ]  ],
+            [ '{"a":3^6}',          null,       {ret_on_err:-1},   [ '{@0', 'K3@1:N1@5', '!1@6: {"tok":0,"msg":"unexpected character"}', 'N1@7', '}@8' ]  ],
+            [ '{"a":3^6}',          null,       {ret_on_err:null}, [ '{@0', 'K3@1:N1@5', '!1@6: {"tok":0,"msg":"unexpected character"}', 'N1@7', '}@8' ]  ],
+            [ '{"a":^}',            null,       {ret_on_err:0},    [ '{@0', 'K3@1:!1@5: {"tok":0,"msg":"unexpected character"}' ]  ],
+            [ '"ab',                null,       {ret_on_err:0},    [ '!3@0: {"tok":34,"msg":"unterminated string"}' ]  ],
+            [ '0*',                 null,       {ret_on_err:0},    [ 'N1@0', '!1@1: {"tok":0,"msg":"unexpected character"}' ] ],
+            [ '0*',                 null,       {ret_on_err:-1},   [ 'N1@0', '!1@1: {"tok":0,"msg":"unexpected character"}' ] ],
+            [ '{"a":1,"b:2,"c":3}', null,       {ret_on_err:undefined},   [
                 '{@0',
                 'K3@1:N1@5',
                 'S6@7',
