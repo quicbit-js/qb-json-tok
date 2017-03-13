@@ -1,5 +1,12 @@
 # qb-json-tok
 
+[![npm][npm-image]][npm-url]
+[![downloads][downloads-image]][npm-url]
+
+[npm-image]:       https://img.shields.io/npm/v/qb-json-tok.svg
+[downloads-image]: https://img.shields.io/npm/dm/qb-json-tok.svg
+[npm-url]:         https://npmjs.org/package/qb-json-tok
+
 Fast (~300 MB/sec) and light (1.3 kb) tokenizer for custom JSON/UTF-8 parsers.
 
 qb-json-tok allows flexibility and efficiency by performing minimum processing 
