@@ -4,6 +4,11 @@
   "description": "Fast (~300 MB/sec) and light (~1.3 kb) JSON/UTF-8 tokenizer for creating custom parsers",
   "repository": "quicbit-js/qb-json-tok",
   "devDependencies": {
+    "eslint-config-standard": "^7.0.1",
+    "eslint-plugin-import": "^2.2.0",
+    "eslint-plugin-node": "^4.2.1",
+    "eslint-plugin-promise": "^3.5.0",
+    "eslint-plugin-standard": "^2.1.1",
     "qb-utf8-ez": "^3.0.0",
     "tape": "^4.6.3"
   },
