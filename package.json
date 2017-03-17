@@ -5,7 +5,8 @@
   "repository": "quicbit-js/qb-json-tok",
   "devDependencies": {
     "qb-utf8-ez": "^3.0.0",
-    "tape": "^4.6.3"
+    "tape": "^4.6.3",
+    "test-kit": "^2.1.3"
   },
   "optionalDependencies": {
     "eslint": "^3.17.1",
