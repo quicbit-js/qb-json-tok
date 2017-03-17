@@ -2,15 +2,28 @@
 
 [![npm][npm-image]][npm-url]
 [![downloads][downloads-image]][npm-url]
+[![bitHound Dependencies][proddep-image]][proddep-link]
+[![dev dependencies][devdep-image]][devdep-link]
+[![code analysis][code-image]][code-link]
 
 [npm-image]:       https://img.shields.io/npm/v/qb-json-tok.svg
 [downloads-image]: https://img.shields.io/npm/dm/qb-json-tok.svg
 [npm-url]:         https://npmjs.org/package/qb-json-tok
+[proddep-image]:   https://www.bithound.io/github/quicbit-js/qb-json-tok/badges/dependencies.svg
+[proddep-link]:    https://www.bithound.io/github/quicbit-js/qb-json-tok/master/dependencies/npm
+[devdep-image]:    https://www.bithound.io/github/quicbit-js/qb-json-tok/badges/devDependencies.svg
+[devdep-link]:     https://www.bithound.io/github/quicbit-js/qb-json-tok/master/dependencies/npm
+[code-image]:      https://www.bithound.io/github/quicbit-js/qb-json-tok/badges/code.svg
+[code-link]:       https://www.bithound.io/github/quicbit-js/qb-json-tok
 
 Fast (~300 MB/sec) and light (1.3 kb) tokenizer for custom JSON/UTF-8 parsers.
 
 qb-json-tok allows flexibility and efficiency by performing minimum processing 
 and leaving heavy-lifting, such as value decoding, as optional work for the callback (delegate)
+
+**Complies with the 100% test coverage and minimum dependency requirements** of 
+[qb-standard](http://github.com/quicbit-js/qb-standard) . 
+
 
 ## Install
 
@@ -45,7 +58,7 @@ ASCII character like all the other ()non-error) tokens.
 
 The tokenizer is just a function with three inputs:
 
-    buffer:    A UTF-8 encoded buffer containing ANY JSON value such as an object, quoted
+    buffer:    A UTF-8 encoded array containing ANY JSON value such as an object, quoted
                string, array, or valid JSON number.  IOW, it doesn't have to be a {...} object.
                
     callback:  A function called for each token encountered.
@@ -87,9 +100,11 @@ a token summary:
     var utf8 = require('qb-utf8-ez');           // to create UTF-8 from strings
     
     // useful token constants:
-    var STRING = 34;       // "  (double-quote)
-    var NUMBER = 78;       // 'N' token for JSON number
-    var ERROR  = 0;        // ERROR occured - details will be in the err_info object
+    var ERROR  = 0        // ERROR          (parser-defined)
+    var STRING = 34       // "  QUOTE       (parser-defined)
+    var NUMBER = 78       // 'N' NUMBER     (parser-defined)
+    var END    = 69       // 'E' END        (our chosen end token:   option.end)
+    
     // other tokens are intuitive - they are the same char code as the first byte parsed
     // 't' for true
     // 'f' for false
@@ -99,36 +114,35 @@ a token summary:
     // '[' for array start
     // ...
     
-    function print_tokens(comment, input, opt) {
-        opt = opt || {}
-        var recover_from
-        var cb = function(buf, key_off, key_len, tok, val_off, val_len, err_info) {
-            var val_str;
-            switch(tok) {
-                case STRING: val_str = 'S' + val_len + '@' + val_off; break;
-                case NUMBER: val_str = 'N' + val_len + '@' + val_off; break;
-                case ERROR:  val_str = '!' + val_len + '@' + val_off + ': ' + JSON.stringify(err_info); break;
-                default:     val_str = String.fromCharCode(tok) + '@' + val_off;
-            }
-            if(key_off === -1) {
-                console.log(val_str);                                           // value only
-            } else {
-                console.log('K' + key_len + '@' + key_off + ':' + val_str);     // key and value
-            }
-            if(tok === ERROR) {
-                switch(opt.on_error) {
-                    case 'stop': return 0
-                    case 'backup': return recover_from   // a contrived / simple recovery strategy that is more effective at fixing mismatched quotes.
-                    default: return -1
-                }
-            }
-            recover_from = val_off + (val_len === 1 ? 1 : val_len -1)
+    function format_callback (opt) {
+      var log = opt.log || console.log
+      var return_on_err = opt.ret_on_err
+    
+      return function format_callback (buf, key_off, key_len, tok, val_off, val_len, err) {
+        var val_str
+        var ret = -1    // returning 0 halts process, > 0 continues at that index.  other values (neg, undefined,...) continue as normal.
+        switch (tok) {
+          case STRING:
+            val_str = 'S' + val_len + '@' + val_off
+            break
+          case NUMBER:
+            val_str = 'N' + val_len + '@' + val_off
+            break
+          case ERROR:
+            val_str = ('!' + val_len + '@' + val_off + ': ' + JSON.stringify(err))
+            ret = return_on_err
+            break;
+          default:
+            val_str = String.fromCharCode(tok) + '@' + val_off
+        }
+        if (key_off === -1) {
+          log(val_str)                                            // value only
+        } else {
+          log('K' + key_len + '@' + key_off + ':' + val_str)      // key and value
         }
     
-        console.log(comment)
-        console.log( "INPUT: '" + input + "'", opt || '')
-        tokenize( utf8.buffer(input), cb, opt )
-        console.log('')
+        return ret  // 0 will halt.  a positive number will continue parse at that offset. anything else will continue to next
+      }
     }
     
 And here is some example output of our formatting callback:
