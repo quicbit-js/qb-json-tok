@@ -35,9 +35,9 @@ var json = {
 function time_tokenize (sample, buf_size, total_bytes) {
   var buf = json.generate(sample, buf_size)
   console.log('buf size:', buf.length)
-  var times =  total_bytes / buf_size
+  var times = total_bytes / buf_size
   var keys = 0, vals = 0
-  var cb = function (buf, ki, klen,tok, vi, vlen) {
+  var cb = function (buf, ki, klen, tok, vi, vlen) {
     if (ki !== -1) keys++
     vals++
   }
@@ -48,7 +48,7 @@ function time_tokenize (sample, buf_size, total_bytes) {
   console.log(keys, 'keys', vals, 'vals')
   var ms = performance.now() - t0
   var mbs = total_bytes / (ms * 1000)
-  console.log('tokenize: ' + (buf_size / 1000) + 'kb buffers ' + times + ' times in ' + ms + ' ms.  ' +  mbs + ' mb per sec.')
+  console.log('tokenize: ' + (buf_size / 1000) + 'kb buffers ' + times + ' times in ' + ms + ' ms.  ' + mbs + ' mb per sec.')
 }
 
 if (typeof window !== 'undefined') {
