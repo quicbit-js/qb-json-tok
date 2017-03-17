@@ -6,6 +6,7 @@
     "no-multi-spaces": 0,
     "comma-spacing": 0,
     "comma-dangle": 0,
+    "one-var": 0,
     "standard/array-bracket-even-spacing": 0
   }
 }
