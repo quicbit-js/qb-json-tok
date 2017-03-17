@@ -1,0 +1,11 @@
+{
+  "extends": "standard",
+  "rules": {
+    "no-labels": "off",
+    "camelcase": "off",
+    "no-multi-spaces": "off",
+    "comma-spacing": "off",
+    "comma-dangle": "off",
+    "standard/array-bracket-even-spacing": "off"
+  }
+}
