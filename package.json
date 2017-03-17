@@ -1,6 +1,6 @@
 {
   "name": "qb-json-tok",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "Fast (~300 MB/sec) and light (~1.3 kb) JSON/UTF-8 tokenizer for creating custom parsers",
   "repository": "quicbit-js/qb-json-tok",
   "devDependencies": {

@@ -1,10 +1,10 @@
-var tokenize = require('.');
-var utf8 = require('qb-utf8-ez');           // to create UTF-8 from strings
+var tokenize = require('.')
+var utf8 = require('qb-utf8-ez')           // to create UTF-8 from strings
 
 // useful token constants:
-var STRING = 34;       // "  (double-quote)
-var NUMBER = 78;       // 'N' token for JSON number
-var ERROR  = 0;        // ERROR occured - details will be in the err_info object
+var STRING = 34       // "  (double-quote)
+var NUMBER = 78       // 'N' token for JSON number
+var ERROR = 0        // ERROR occured - details will be in the err_info object
 // other tokens are intuitive - they are the same char code as the first byte parsed
 // 't' for true
 // 'f' for false
@@ -14,47 +14,46 @@ var ERROR  = 0;        // ERROR occured - details will be in the err_info object
 // '[' for array start
 // ...
 
-function print_tokens(comment, input, opt) {
-    opt = opt || {}
-    var recover_from
-    var cb = function(buf, key_off, key_len, tok, val_off, val_len, err_info) {
-        var val_str;
-        switch(tok) {
-            case STRING: val_str = 'S' + val_len + '@' + val_off; break;
-            case NUMBER: val_str = 'N' + val_len + '@' + val_off; break;
-            case ERROR:  val_str = '!' + val_len + '@' + val_off + ': ' + JSON.stringify(err_info); break;
-            default:     val_str = String.fromCharCode(tok) + '@' + val_off;
-        }
-        if(key_off === -1) {
-            console.log(val_str);                                           // value only
-        } else {
-            console.log('K' + key_len + '@' + key_off + ':' + val_str);     // key and value
-        }
-        if(tok === ERROR) {
-            switch(opt.on_error) {
-                case 'stop': return 0
-                case 'backup': return recover_from   // a contrived / simple recovery strategy that is more effective at fixing mismatched quotes.
-                default: return -1
-            }
-        }
-        recover_from = val_off + (val_len === 1 ? 1 : val_len -1)
+function print_tokens (comment, input, opt) {
+  opt = opt || {}
+  var recover_from
+  var cb = function (buf, key_off, key_len, tok, val_off, val_len, err_info) {
+    var val_str
+    switch (tok) {
+      case STRING: val_str = 'S' + val_len + '@' + val_off; break
+      case NUMBER: val_str = 'N' + val_len + '@' + val_off; break
+      case ERROR: val_str = '!' + val_len + '@' + val_off + ': ' + JSON.stringify(err_info); break
+      default: val_str = String.fromCharCode(tok) + '@' + val_off
     }
+    if (key_off === -1) {
+      console.log(val_str)                                           // value only
+    } else {
+      console.log('K' + key_len + '@' + key_off + ':' + val_str)     // key and value
+    }
+    if (tok === ERROR) {
+      switch (opt.on_error) {
+        case 'stop': return 0
+        case 'backup': return recover_from   // a contrived / simple recovery strategy that is more effective at fixing mismatched quotes.
+        default: return -1
+      }
+    }
+    recover_from = val_off + (val_len === 1 ? 1 : val_len - 1)
+  }
 
-    console.log(comment)
-    console.log( "INPUT: '" + input + "'", opt || '')
-    tokenize( utf8.buffer(input), cb, opt )
-    console.log('')
+  console.log(comment)
+  console.log("INPUT: '" + input + "'", opt || '')
+  tokenize(utf8.buffer(input), cb, opt)
+  console.log('')
 }
 
-
-print_tokens( 'simple object', '{"a": 1, "b": 2}' );
-print_tokens( 'stand-alone value', ' 7.234556    ' );
-print_tokens( 'stand-alone incomplete value with the "end" set to \'E\'', '[ -2.3, "hi \\\"there\\\""', { end: 69 } );
-print_tokens( 'invalid number - stop on error',     '[ -2.3, 5~, "bb", true, {"a": 1, "b": 2} ]',  { on_error: 'stop' } );
-print_tokens( 'invalid number - continue on error', '[ -2.3, 5~, "bb", true, {"a": 1, "b": 2} ]',  { on_error: 'continue' } );
-print_tokens( 'valid json ',                        '[ -2.3, "aaa", "bb", true, {"a": 1, "b": 2} ]' );
-print_tokens( 'invalid quote - continue',                '[ -2.3, "aaa, "bb", true, {"a": 1, "b": 2} ]',    { on_error: 'continue' } );
-print_tokens( 'invalid quote - continue slow increment', '[ -2.3, "aaa, "bb", true, {"a": 1, "b": 2} ]',    { on_error: 'backup' } );
+print_tokens('simple object', '{"a": 1, "b": 2}')
+print_tokens('stand-alone value', ' 7.234556    ')
+print_tokens('stand-alone incomplete value with the "end" set to \'E\'', '[ -2.3, "hi \\"there\\""', { end: 69 })
+print_tokens('invalid number - stop on error', '[ -2.3, 5~, "bb", true, {"a": 1, "b": 2} ]', { on_error: 'stop' })
+print_tokens('invalid number - continue on error', '[ -2.3, 5~, "bb", true, {"a": 1, "b": 2} ]', { on_error: 'continue' })
+print_tokens('valid json ', '[ -2.3, "aaa", "bb", true, {"a": 1, "b": 2} ]')
+print_tokens('invalid quote - continue', '[ -2.3, "aaa, "bb", true, {"a": 1, "b": 2} ]', { on_error: 'continue' })
+print_tokens('invalid quote - continue slow increment', '[ -2.3, "aaa, "bb", true, {"a": 1, "b": 2} ]', { on_error: 'backup' })
 
 /*
 OUTPUT
