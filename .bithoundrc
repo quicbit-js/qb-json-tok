@@ -1,7 +1,6 @@
 {
   "critics": {
-    "lint": { "engine": "eslint" },
-    "wc":   { "limit": 10000 },
+    "lint": { "engine": "standard" },
     "test": [ "test.js", "perf/*.js" ]
   }
 }
