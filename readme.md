@@ -16,7 +16,7 @@
 [code-image]:      https://www.bithound.io/github/quicbit-js/qb-json-tok/badges/code.svg
 [code-link]:       https://www.bithound.io/github/quicbit-js/qb-json-tok
 
-Fast (~300 MB/sec) and light (1.3 kb) tokenizer for custom JSON/UTF-8 parsers.
+Fast (~350 MB/sec) and light (1.6 kb *zero dependecy*) tokenizer for custom JSON/UTF-8 parsers.
 
 qb-json-tok allows flexibility and efficiency by performing minimum processing 
 and leaving heavy-lifting, such as value decoding, as optional work for the callback (delegate)
