@@ -48,7 +48,8 @@ function tokenize (buf, cb, opt) {
               break tok_switch
             }
           }
-          if (buf[idx - 1] !== 92) {        // \    BACKSLASH
+          for (var i=1; buf[idx - i] === 92; i++) {}  // \    count BACKSLASH
+          if (i % 2) {
             break
           }
         }

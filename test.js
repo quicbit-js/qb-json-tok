@@ -59,11 +59,12 @@ function format_callback (opt) {
 test('tokenize', function (t) {
   t.tableAssert(
     [
-      [ 'input',             'tok_opt',    'cb_opt',       'exp'                                               ],
+      [ 'input',             'tok_opt',  'cb_opt',         'exp'                                               ],
       [ '"\\""',              null,       null,            [ 'S4@0' ]                                          ],
-      [ '{"a":1}',             null,      null,            [ '{@0','K3@1:N1@5','}@6' ]                         ],
-      [ '{"a" :1}',            null,      null,            [ '{@0','K3@1:N1@6','}@7' ]                         ],
-      [ '{"a": 1}',            null,      null,            [ '{@0','K3@1:N1@6','}@7' ]                         ],
+      [ '"\\\\"',             null,       null,            [ 'S4@0' ]                                          ],
+      [ '{"a":1}',            null,       null,            [ '{@0','K3@1:N1@5','}@6' ]                         ],
+      [ '{"a" :1}',           null,       null,            [ '{@0','K3@1:N1@6','}@7' ]                         ],
+      [ '{"a": 1}',           null,       null,            [ '{@0','K3@1:N1@6','}@7' ]                         ],
       [ '-3.05',              null,       null,            [ 'N5@0' ]                                          ],
       [ '"x"',                null,       null,            [ 'S3@0']                                           ],
       [ '\t\t"x\\a\r"  ',     null,       null,            [ 'S6@2']                                           ],
@@ -75,6 +76,7 @@ test('tokenize', function (t) {
 
       // errors
       [ '"ab',                null,       null,                    [ '!3@0: {"tok":34,"msg":"unterminated string"}' ]  ],
+      [ '"\\\\\\"',            null,       null,                   [ '!5@0: {"tok":34,"msg":"unterminated string"}' ]  ],
       [ '"abc"%',             null,       {ret_on_err: 0},         [ 'S5@0', '!1@5: {"tok":0,"msg":"unexpected character"}' ]  ],
       [ '0*',                 null,       null,                    [ 'N1@0', '!1@1: {"tok":0,"msg":"unexpected character"}' ]  ],
       [ '{"a":3^6}',          null,       {ret_on_err: 0},         [ '{@0', 'K3@1:N1@5', '!1@6: {"tok":0,"msg":"unexpected character"}' ]  ],

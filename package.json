@@ -12,7 +12,8 @@
     "test-kit": "^2.3.1"
   },
   "scripts": {
-    "test": "tap --coverage-report=html test.js",
+    "test": "tape test.js",
+    "cov": "tap --coverage-report=html test.js",
     "ptest": "browserify perf/ptest.js > perf/ptest-bundle.js && echo 'Built. \nOpen perf/ptest.html in a browser to run tests\n'",
     "dist": "mkdir -p dist && browserify index.js > dist/qb-json-tok.js && cat dist/qb-json-tok.js | uglifyjs -c -m > dist/qb-json-tok.min.js"
   },
