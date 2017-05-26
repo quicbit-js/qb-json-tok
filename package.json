@@ -7,9 +7,9 @@
   "email": "support@quicbit.com",
   "repository": "quicbit-js/qb-json-tok",
   "devDependencies": {
-    "qb-utf8-ez": "^3.0.1",
+    "qb-utf8-ez": "^3.0.2",
     "tape": "^4.6.3",
-    "test-kit": "^2.3.1"
+    "test-kit": "^2.5.1"
   },
   "scripts": {
     "test": "tape test.js",
