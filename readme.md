@@ -30,29 +30,6 @@ and leaving heavy-lifting, such as value decoding, as optional work for the call
     npm install qb-json-tok
 
 ## tokenize(buffer, callback, options)
-
-## API CHANGE ALERT (version 1.x -> 2.x)
-
-**In version 2.0, returns codes and error handling changed as follows:**
-  
-1. 0xF1 is no longer used for Number token.  ASCII 78 ('N') is used instead.
-    
-2. Exceptions are no longer thrown during processing.  Instead, a 0 (zero) token
-   is passed to the callback with value index and length showing the location and span of
-   the error.
-
-3. The callback return value is no longer simply a truthy value that indicates
-   whether to stop.  The return value, if greater than zero, is the index
-   at which to continue processing.  If zero, processing will halt.  If negative
-   or anyting else (null/undefined) processing continues.
-    
-Changes 2 and 3 were important in that they allowed the tokenizer to stay simple and fast, 
-while giving a fine degree of control over unexpected sequences in a way that aligns 
-naturally with the handling in the callback.  All that is required to manage errors is to 
-add an <code>if( token === 0 )</code> or <code>case 0:</code> statement to the callback.  The change of the
-Number token to 'N' also simplified handling of output since, unlike 0xF1, it mapped naturally to an 
-ASCII character like all the other ()non-error) tokens.
-  
   
 ## API
 
@@ -238,3 +215,26 @@ The simple backup strategy works great to recover from this quote error:
 well on other types of errors.  If your system needs to handle smart-recovery from bad
 files, the speed of the tokenizer could allow many strategies to be actively tried across
 a large sample region and choose the best recovery option of a variety tried.
+
+## API CHANGE NOTE (version 1.x -> 2.x)
+
+**In version 2.0, returns codes and error handling changed as follows:**
+  
+1. 0xF1 is no longer used for Number token.  ASCII 78 ('N') is used instead.
+    
+2. Exceptions are no longer thrown during processing.  Instead, a 0 (zero) token
+   is passed to the callback with value index and length showing the location and span of
+   the error.
+
+3. The callback return value is no longer simply a truthy value that indicates
+   whether to stop.  The return value, if greater than zero, is the index
+   at which to continue processing.  If zero, processing will halt.  If negative
+   or anyting else (null/undefined) processing continues.
+    
+Changes 2 and 3 were important in that they allowed the tokenizer to stay simple and fast, 
+while giving a fine degree of control over unexpected sequences in a way that aligns 
+naturally with the handling in the callback.  All that is required to manage errors is to 
+add an <code>if( token === 0 )</code> or <code>case 0:</code> statement to the callback.  The change of the
+Number token to 'N' also simplified handling of output since, unlike 0xF1, it mapped naturally to an 
+ASCII character like all the other ()non-error) tokens.
+  
