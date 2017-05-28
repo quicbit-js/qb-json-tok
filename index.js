@@ -144,7 +144,7 @@ function tokenize (buf, cb, opt) {
     cb(buf, -1, 0, 34, si, slen, err_info)  // push out pending string (34 = QUOTE) as a value - this would not work for truncation mode
   }
   if (opt && opt.end) {
-    cb(buf, -1, 0, opt.end, lim, 0)                                 // END
+    cb(buf, -1, 0, opt.end, idx, 0)                                 // END
   }
   return idx
 }
