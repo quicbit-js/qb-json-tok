@@ -66,6 +66,8 @@ test('tokenize', function (t) {
       [ '{"a" :1}',           null,       null,            [ '{@0','K3@1:N1@6','}@7' ]                         ],
       [ '{"a": 1}',           null,       null,            [ '{@0','K3@1:N1@6','}@7' ]                         ],
       [ '-3.05',              null,       null,            [ 'N5@0' ]                                          ],
+      [ '  true',             null,       null,            [ 't@2' ]                                           ],
+      [ ' false',             null,       null,            [ 'f@1' ]                                           ],
       [ '"x"',                null,       null,            [ 'S3@0']                                           ],
       [ '\t\t"x\\a\r"  ',     null,       null,            [ 'S6@2']                                           ],
       [ '"\\"x\\"a\r\\""',    null,       null,            [ 'S11@0']                                          ],
