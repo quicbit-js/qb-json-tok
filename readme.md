@@ -48,20 +48,29 @@ The tokenizer is just a function with three inputs:
         valIndex:    index start of a stand-alone value or the value in a key/value pair
         valLength:   length of value in UTF-8 bytes - a stand alone value or value in a key/value pair
         
-        err:         If there is an error, err will be an object containing:
+        err:         if there is an error, err will be an object containing:
             msg:     the error message
             tok:     the token where the error occured (unterminated string error will have tok: 34) OR 
                      zero if the token was invalid/unknown.
                      
-        returns:     zero - will cause processing to immediately terminate.
-                     positive number - will cause processing to continue at that returned offset
-                     anything else (undefined, null, negative number) - will cause processing to continue.
+        returns:     the value returned controls processing: 
+                        returning zero halts the tokenizer.
+                        returning a positive number will continue tokenizing at that offset 
+                                (backtrack or skip forward to the returned offset).  Note that
+                                jumping to the value 'xyz' of a key value pair:
+                                        { "a": "xyz" }...
+                                will make the tokenizer return just a string value, not the k
+                        returning anything else (undefined, null, negative number) - will cause 
+                                processing to continue.
                      
                      NOTE: as of version 2.0, if you want to halt processing on error, you must check
                      the return token for error (zero) and return zero from the function.
     
-    options:
-        end:        If set, then this value will be passed to callback as the 'token' when parsing completes.
+    options
+        end:         if set, then this value will be passed to callback as the 'token' when parsing completes.
+        
+    returns:    The buffer offset where token processing stopped.
+                 
 
 ## Example
 
