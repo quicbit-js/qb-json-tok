@@ -1,7 +1,7 @@
 function tokenize (buf, cb, opt) {
-  var tok = 0             // current token
-  var idx = 0             // current index offset into buf
   var lim = buf.length    // buffer limit
+  var idx = 0             // current index offset into buf
+  var tok = 0             // current token
   var vi = -1             // value start index
   var si = -1             // previous string index   (may be a key or string value)
   var slen = -1           // previous string length  (may be a key or string value)
@@ -105,33 +105,32 @@ function tokenize (buf, cb, opt) {
     }
     var cbres = -1
     if (si === -1) {
-      // value (something other than string)
+      // non-string
       cbres = cb(buf, -1, 0, tok, vi, idx - vi, err_info)
     } else {
-      // string...
+      // string
       if (prev_tok === 58) {                              // COLON
-        // string, ':', ...
+        // string with-preceding-colon
         cbres = cb(buf, si, slen, tok, vi, idx - vi, err_info)
       } else {
-        // string, non-colon
+        // string no-preceding-colon
         cbres = cb(buf, -1, 0, 34, si, slen)              // 34 STRING (QUOTE)
         if (cbres > 0) {
-          idx = cbres; si = -1; slen = 0; continue        // cb requested index
+          // reset state (prev_tok and vi are reset in main_loop)
+          tok = 0; idx = cbres; si = -1; slen = 0; continue        // cb requested index
         } else if (cbres === 0) {
           return si + slen                                // cb requested stop
         }
-        // value
-        // in valid JSON, we don't have to worry about this value being
-        // a key because
-        // { string:string, string:string, ... are consumed in pairs and
-        // [ string, string, string:string     doesn't happen
+        // in valid JSON vi cannot be a key because:
+        // { string:string, string:string, ... } are consumed in pairs
         cbres = cb(buf, -1, 0, tok, vi, idx - vi, err_info)
       }
       si = -1; slen = 0
     }
 
     if (cbres > 0) {
-      idx = cbres; si = -1; slen = 0; continue              // cb requested index
+      // reset state (prev_tok and vi are reset in main_loop)
+      tok = 0; idx = cbres; si = -1; slen = 0; continue              // cb requested index
     } else if (cbres === 0) {
       return idx                                            // cb requested stop
     }
