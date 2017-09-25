@@ -71,13 +71,9 @@ The tokenizer is just a function with four inputs:
                      the return token for error (zero) and return zero from the function.
     
     options
-        end:         if set, then this value will be passed to callback as the 'token' when parsing completes.
-        mode:        if set to 'incremental', then the 'end' option will will be 
+        end:         the token used to indicate when parsing completes.  defaults to 69 ('E'). this option is only for backward compatibility
         
     state            for incremental parsing, you can pass the state object returned by the end callback into this argument.
-        
-    returns:    The buffer offset where token processing stopped.
-                 
 
 ## Example
 
