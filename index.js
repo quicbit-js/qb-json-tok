@@ -1,7 +1,6 @@
 function tokenize (buf, cb, opt, state) {
   opt = opt || {}
   var end = opt.end || 69     // default end to 'E'
-  var flush = opt.flush !== false
   var lim = buf.length        // buffer limit
 
   state = state || { si: -1, slen: -1, tok: 0 }
