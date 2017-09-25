@@ -161,20 +161,3 @@ test('callback return', function (t) {
     }
   )
 })
-
-// test('incremental parsing', function (t) {
-//     t.tableAssert(
-//         [
-//             [ 'input',     'at_tok', 'ret',    'exp'                                          ],
-//             [ [ '{"a":1}'],    0,        6,        [ '{@0','}@6', 'E@7' ]                               ],
-//         ],
-//         function (input) {
-//             cb_opt = cb_opt || {}
-//             var hector = t.hector()
-//             cb_opt.log = hector
-//             var cb = format_callback(cb_opt)
-//             tokenize(utf8.buffer(input), cb, tok_opt)
-//             return hector.arg(0)
-//         }
-//     )
-// })

@@ -153,7 +153,7 @@ function tokenize (buf, cb, opt, state) {
           // reset state (prev_tok and vi are reset in main_loop)
           tok = 0; idx = cbres; si = -1; slen = 0; continue         // cb requested index
         } else if (cbres === 0) {
-          return { idx: idx, si: si, slen: slen, tok: tok }         // cb requested stop
+          return                                                    // cb requested stop
         }
         // in valid JSON vi cannot be a key because:
         // { string:string, string:string, ... } are consumed in pairs
@@ -166,20 +166,14 @@ function tokenize (buf, cb, opt, state) {
       // reset state (prev_tok and vi are reset in main_loop)
       tok = 0; idx = cbres; si = -1; slen = 0                       // cb requested index
     } else if (cbres === 0) {
-      return { idx: idx, si: si, slen: slen, tok: tok }             // cb requested stop
+      return                                                        // cb requested stop
     }
   }  // end main_loop: while(idx < lim) {...
 
-  if (flush) {
     if (si !== -1) {
         cb(buf, -1, 0, 34, si, slen)  // push out pending string (34 = QUOTE) as a value
     }
     cb(buf, -1, 0, end, idx, 0)
-    return { idx: idx, si: -1, slen: 0, tok: 34 }
-  } else {
-    cb(buf, -1, 0, end, idx, 0)
-    return { idx: idx, si: si, slen: slen, tok: tok }
-  }
 }
 
 module.exports = tokenize
