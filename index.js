@@ -1,10 +1,12 @@
 function tokenize (buf, cb, opt) {
-  var lim = buf.length    // buffer limit
-  var idx = 0             // current index offset into buf
-  var tok = 0             // current token
-  var vi = -1             // value start index
-  var si = -1             // previous string index   (may be a key or string value)
-  var slen = -1           // previous string length  (may be a key or string value)
+  opt = opt || {}
+  opt.end = opt.end || 69     // default end to 'E'
+  var lim = buf.length        // buffer limit
+  var idx = 0                 // current index offset into buf
+  var tok = 0                 // current token
+  var vi = -1                 // value start index
+  var si = -1                 // previous string index   (may be a key or string value)
+  var slen = -1               // previous string length  (may be a key or string value)
   var prev_tok = 0
   var err_info = null
   main_loop: while (idx < lim) {
@@ -142,9 +144,7 @@ function tokenize (buf, cb, opt) {
   if (si !== -1) {
     cb(buf, -1, 0, 34, si, slen, err_info)  // push out pending string (34 = QUOTE) as a value - this would not work for truncation mode
   }
-  if (opt && opt.end) {
-    cb(buf, -1, 0, opt.end, idx, 0)                                 // END
-  }
+  cb(buf, -1, 0, opt.end, idx, 0)                                 // END
   return idx
 }
 
