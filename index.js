@@ -1,14 +1,12 @@
-function tokenize (buf, cb, opt, state) {
+function tokenize (buf, cb, opt) {
   opt = opt || {}
   var end = opt.end || 69     // default end to 'E'
   var lim = buf.length        // buffer limit
 
-  state = state || { si: -1, slen: -1, tok: 0 }
-
   var idx = 0                           // current index offset into buf
-  var tok = state.tok                   // current token being handled
-  var si = state.si                     // current or previous string index
-  var slen = state.slen                 // previous string length  (may be a key or string value)
+  var tok = 0                           // current token being handled
+  var si = -1                           // current or previous string index
+  var slen = 0                          // previous string length  (may be a key or string value)
   var vi                                // value start index
   var err_info
   var prev_tok
@@ -78,34 +76,30 @@ function tokenize (buf, cb, opt, state) {
           continue  // main_loop: next tokens could be :-and-value or something else
         }
         break
-      case 110:                             // 'n'  null
-      case 116:                             // 't'  true
+      case 110:                                 // n  null
+      case 116:                                 // t  true
         vi = idx
         idx += 4
         break
-      case 102:                             // 'f'  false
+      case 102:                                 // f  false
         vi = idx
         idx += 5
         break
-      case 48:case 49:case 50:              // 0-9
-      case 51:case 52:case 53:
-      case 54:case 55:case 56:
-      case 57:
-      case 45:                              // '-'   ('+' is not legal here)
+      case 48:case 49:case 50:case 51:case 52:   // digits 0-4
+      case 53:case 54:case 55:case 56:case 57:   // digits 5-9
+      case 45:                                   // '-'   ('+' is not legal here)
         vi = idx
-        tok = 78                            // NUMBER  'N'
+        tok = 78                                 // N  Number
         while (++idx < lim) {
           switch (buf[idx]) {
             // skip all possibly-valid characters - as fast as we can
-            case 48:case 49:case 50:   // 0-9
-            case 51:case 52:case 53:
-            case 54:case 55:case 56:
-            case 57:
-            case 43:                    // +
-            case 45:                    // '-'
-            case 46:                    // .
-            case 69:                    // E
-            case 101:                   // e
+            case 48:case 49:case 50:case 51:case 52:   // digits 0-4
+            case 53:case 54:case 55:case 56:case 57:   // digits 5-9
+            case 43:                                   // +
+            case 45:                                   // -
+            case 46:                                   // .
+            case 69:                                   // E
+            case 101:                                  // e
               break
             default:
               break tok_switch
@@ -173,6 +167,20 @@ function tokenize (buf, cb, opt, state) {
         cb(buf, -1, 0, 34, si, slen)  // push out pending string (34 = QUOTE) as a value
     }
     cb(buf, -1, 0, end, idx, 0)
+}
+
+tokenize.CODE = {
+  END: 69,
+  STR: 34,
+  ERR: 0,
+  NUM: 78,
+  ARR_BEG: 91,
+  ARR_END: 93,
+  OBJ_BEG: 123,
+  OBJ_END: 125,
+  TRU: 116,
+  FAL: 102,
+  NUL: 110,
 }
 
 module.exports = tokenize

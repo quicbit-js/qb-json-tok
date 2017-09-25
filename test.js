@@ -6,7 +6,6 @@ var utf8 = require('qb-utf8-ez')
 var ERROR  = 0        // ERROR          (parser-defined)
 var STRING = 34       // "  QUOTE       (parser-defined)
 var NUMBER = 78       // 'N' NUMBER     (parser-defined)
-var END    = 69       // 'E' END        (our chosen end token:   option.end)
 
 // other tokens are intuitive - they are the same char code as the first byte parsed
 // 't' for true
