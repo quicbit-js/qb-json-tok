@@ -1,15 +1,22 @@
-function tokenize (buf, cb, opt) {
+function tokenize (buf, cb, opt, state) {
   opt = opt || {}
-  opt.end = opt.end || 69     // default end to 'E'
+  var end = opt.end || 69     // default end to 'E'
+  var flush = opt.flush !== false
   var lim = buf.length        // buffer limit
-  var idx = 0                 // current index offset into buf
-  var tok = 0                 // current token
-  var vi = -1                 // value start index
-  var si = -1                 // previous string index   (may be a key or string value)
-  var slen = -1               // previous string length  (may be a key or string value)
-  var prev_tok = 0
-  var err_info = null
+
+  state = state || { si: -1, slen: -1, tok: 0 }
+
+  var idx = 0                           // current index offset into buf
+  var tok = state.tok                   // current token being handled
+  var si = state.si                     // current or previous string index
+  var slen = state.slen                 // previous string length  (may be a key or string value)
+  var vi                                // value start index
+  var err_info
+  var prev_tok
+
   main_loop: while (idx < lim) {
+    vi = -1
+    err_info = null
     prev_tok = tok
     tok = buf[idx]
     tok_switch: switch (tok) {
@@ -38,10 +45,18 @@ function tokenize (buf, cb, opt) {
         vi = idx++
         break
       case 58:                              // :    COLON
-        idx++
-        continue    // main_loop
+        if (si === -1) {
+          err_info = { tok: 34, msg: 'unexpected colon' }
+          tok = 0
+          vi = idx++
+          break
+        } else {
+          idx++
+          continue
+        }
       case 34:                              // "    QUOTE
         vi = idx
+          // console.log('string at ', vi)
         while (true) {
           while (buf[++idx] !== 34) {       // "    QUOTE
             if (idx === lim) {
@@ -59,6 +74,7 @@ function tokenize (buf, cb, opt) {
         if (si === -1) {
           // set string index (potential key)
           si = vi
+          vi = -1
           slen = idx - si
           continue  // main_loop: next tokens could be :-and-value or something else
         }
@@ -98,7 +114,23 @@ function tokenize (buf, cb, opt) {
         }
         break
       case 44:                                // COMMA
-        idx++
+          // console.log('comma at ', idx)
+        switch (prev_tok) {
+            case 34:                              // "    QUOTE (string)
+            case 78:                              // N    NUMBER
+            case 93:                              // ]    ARRAY END
+            case 102:                             // f    false
+            case 110:                             // n    null
+            case 116:                             // t    true
+            case 125:                             // }    OBJECT END
+                idx++
+                break
+            default:
+                err_info = { tok: 44, msg: 'unexpected comma' }
+                tok = 0
+                vi = idx++
+                break tok_switch
+        }
         continue
       default:
         vi = idx++
@@ -119,9 +151,9 @@ function tokenize (buf, cb, opt) {
         cbres = cb(buf, -1, 0, 34, si, slen)              // 34 STRING (QUOTE)
         if (cbres > 0) {
           // reset state (prev_tok and vi are reset in main_loop)
-          tok = 0; idx = cbres; si = -1; slen = 0; continue        // cb requested index
+          tok = 0; idx = cbres; si = -1; slen = 0; continue         // cb requested index
         } else if (cbres === 0) {
-          return si + slen                                // cb requested stop
+          return { idx: idx, si: si, slen: slen, tok: tok }         // cb requested stop
         }
         // in valid JSON vi cannot be a key because:
         // { string:string, string:string, ... } are consumed in pairs
@@ -132,20 +164,22 @@ function tokenize (buf, cb, opt) {
 
     if (cbres > 0) {
       // reset state (prev_tok and vi are reset in main_loop)
-      tok = 0; idx = cbres; si = -1; slen = 0; continue              // cb requested index
+      tok = 0; idx = cbres; si = -1; slen = 0                       // cb requested index
     } else if (cbres === 0) {
-      return idx                                            // cb requested stop
-    }
-
-    if (err_info) {
-      err_info = null
+      return { idx: idx, si: si, slen: slen, tok: tok }             // cb requested stop
     }
   }  // end main_loop: while(idx < lim) {...
-  if (si !== -1) {
-    cb(buf, -1, 0, 34, si, slen, err_info)  // push out pending string (34 = QUOTE) as a value - this would not work for truncation mode
+
+  if (flush) {
+    if (si !== -1) {
+        cb(buf, -1, 0, 34, si, slen)  // push out pending string (34 = QUOTE) as a value
+    }
+    cb(buf, -1, 0, end, idx, 0)
+    return { idx: idx, si: -1, slen: 0, tok: 34 }
+  } else {
+    cb(buf, -1, 0, end, idx, 0)
+    return { idx: idx, si: si, slen: slen, tok: tok }
   }
-  cb(buf, -1, 0, opt.end, idx, 0)                                 // END
-  return idx
 }
 
 module.exports = tokenize

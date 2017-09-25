@@ -33,7 +33,7 @@ and leaving heavy-lifting, such as value decoding, as optional work for the call
   
 ## API
 
-The tokenizer is just a function with three inputs:
+The tokenizer is just a function with four inputs:
 
     buffer:    A UTF-8 encoded array containing ANY JSON value such as an object, quoted
                string, array, or valid JSON number.  IOW, it doesn't have to be a {...} object.
@@ -48,10 +48,14 @@ The tokenizer is just a function with three inputs:
         valIndex:    index start of a stand-alone value or the value in a key/value pair
         valLength:   length of value in UTF-8 bytes - a stand alone value or value in a key/value pair
         
-        err:         if there is an error, err will be an object containing:
-            msg:     the error message
-            tok:     the token where the error occured (unterminated string error will have tok: 34) OR 
-                     zero if the token was invalid/unknown.
+        info:        information object for error and end events        
+                     if there is an error, err will be an object containing:
+                        { 
+                            msg:     the error message
+                            tok:     the token where the error occured (unterminated string error will have tok: 34) OR
+                                     zero if the token was invalid/unknown.
+                        }
+                     if then end of buffer is reached, this contains the parse state that can be passed to continue parsing
                      
         returns:     the value returned controls processing: 
                         returning zero halts the tokenizer.
@@ -68,6 +72,9 @@ The tokenizer is just a function with three inputs:
     
     options
         end:         if set, then this value will be passed to callback as the 'token' when parsing completes.
+        mode:        if set to 'incremental', then the 'end' option will will be 
+        
+    state            for incremental parsing, you can pass the state object returned by the end callback into this argument.
         
     returns:    The buffer offset where token processing stopped.
                  

@@ -77,8 +77,9 @@ test('tokenize', function (t) {
       [ '["a",1.3 \n\t{ "b" : ["v", "w"]\n}\t\n ]', null, null,   [ '[@0','S3@1','N3@5','{@11','K3@13:[@19','S3@20','S3@25',']@28','}@30',']@34', 'E@35' ] ],
 
       // errors
+      [ ',[,:["b"]',          null,       null,                    [ '!1@0: {"tok":44,"msg":"unexpected comma"}', '[@1', '!1@2: {"tok":44,"msg":"unexpected comma"}', '!1@3: {"tok":34,"msg":"unexpected colon"}', '[@4', 'S3@5', ']@8', 'E@9' ]     ],
       [ '"ab',                null,       null,                    [ '!3@0: {"tok":34,"msg":"unterminated string"}', 'E@3' ]  ],
-      [ '"\\\\\\"',            null,       null,                   [ '!5@0: {"tok":34,"msg":"unterminated string"}', 'E@5' ]  ],
+      [ '"\\\\\\"',           null,       null,                    [ '!5@0: {"tok":34,"msg":"unterminated string"}', 'E@5' ]  ],
       [ '"abc"%',             null,       {ret_on_err: 0},         [ 'S5@0', '!1@5: {"tok":0,"msg":"unexpected character"}' ]  ],
       [ '0*',                 null,       null,                    [ 'N1@0', '!1@1: {"tok":0,"msg":"unexpected character"}', 'E@2' ]  ],
       [ '{"a":3^6}',          null,       {ret_on_err: 0},         [ '{@0', 'K3@1:N1@5', '!1@6: {"tok":0,"msg":"unexpected character"}' ]  ],
@@ -120,7 +121,7 @@ test('callback return', function (t) {
       [ '{"a":1}',    2,        1,        [ '{@0','K3@1:N1@5','}@6','K3@1:N1@5','}@6', 'E@7' ] ],
       [ '{"a":1}',    2,        2,        [ '{@0','K3@1:N1@5','}@6','!1@2: {"tok":0,"msg":"unexpected character"}','!4@3: {"tok":34,"msg":"unterminated string"}', 'E@7' ]     ],
       [ '{"a":1}',    2,        3,        [ '{@0','K3@1:N1@5','}@6','!4@3: {"tok":34,"msg":"unterminated string"}', 'E@7' ]     ],
-      [ '{"a":1}',    2,        4,        [ '{@0','K3@1:N1@5','}@6','N1@5','}@6', 'E@7' ]      ],
+      [ '{"a":1}',    2,        4,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@4: {"tok":34,"msg":"unexpected colon"}', 'N1@5', '}@6', 'E@7' ]      ],
       [ '{"a":1}',    2,        5,        [ '{@0','K3@1:N1@5','}@6','N1@5','}@6', 'E@7' ]      ],
       [ '{"a":1}',    2,        6,        [ '{@0','K3@1:N1@5','}@6','}@6', 'E@7' ]             ],
       [ '{"a":1}',    2,        7,        [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                   ],
@@ -130,11 +131,11 @@ test('callback return', function (t) {
       [ '["a","b"]',  2,        null,     [ '[@0','S3@1','S3@5',']@8', 'E@9' ]                 ],
       [ '["a","b"]',  2,        0,        [ '[@0','S3@1','S3@5' ]                              ],
       [ '["a","b"]',  2,        1,        [ '[@0','S3@1','S3@5','S3@1','S3@5',']@8', 'E@9' ]   ],
-      [ '["a","b"]',  2,        4,        [ '[@0','S3@1','S3@5','S3@5',']@8', 'E@9' ]          ],
+      [ '["a","b"]',  2,        4,        [ '[@0', 'S3@1', 'S3@5', '!1@4: {"tok":44,"msg":"unexpected comma"}', 'S3@5', ']@8', 'E@9' ] ],
       [ '["a","b"]',  2,        5,        [ '[@0','S3@1','S3@5','S3@5',']@8', 'E@9' ]          ],
       [ '["a","b"]',  2,        8,        [ '[@0','S3@1','S3@5',']@8', 'E@9' ]                 ],
       [ '["a","b"]',  1,        1,        [ '[@0','S3@1','S3@1','S3@5',']@8', 'E@9' ]          ],
-      [ '["a","b"]',  1,        4,        [ '[@0','S3@1','S3@5',']@8', 'E@9' ]                 ],
+      [ '["a","b"]',  1,        4,        [ '[@0', 'S3@1', '!1@4: {"tok":44,"msg":"unexpected comma"}', 'S3@5', ']@8', 'E@9' ]     ],
       [ '["a","b"]',  1,        5,        [ '[@0','S3@1','S3@5',']@8', 'E@9' ]                 ],
       [ '["a","b"]',  1,        8,        [ '[@0','S3@1',']@8', 'E@9' ]                        ],
       [ '["a","b"]',  1,        9,        [ '[@0','S3@1', 'E@9' ]                              ],
@@ -160,3 +161,20 @@ test('callback return', function (t) {
     }
   )
 })
+
+// test('incremental parsing', function (t) {
+//     t.tableAssert(
+//         [
+//             [ 'input',     'at_tok', 'ret',    'exp'                                          ],
+//             [ [ '{"a":1}'],    0,        6,        [ '{@0','}@6', 'E@7' ]                               ],
+//         ],
+//         function (input) {
+//             cb_opt = cb_opt || {}
+//             var hector = t.hector()
+//             cb_opt.log = hector
+//             var cb = format_callback(cb_opt)
+//             tokenize(utf8.buffer(input), cb, tok_opt)
+//             return hector.arg(0)
+//         }
+//     )
+// })
