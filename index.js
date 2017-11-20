@@ -3,17 +3,17 @@ function tokenize (cb, src, off, lim) {
   lim = lim == null ? src.length : lim
 
   var idx = off                         // current index offset into buf
-  var tok = 0                           // current token being handled
   var koff = -1
   var klim = -1
-  var vi                                // value start index
-  var err_info
-  var prev_tok
+  var tok = 0                           // current token being handled
+  var voff = -1                         // value start index
+  var info = null                       // extra information about errors or split values
+  var prev_tok = -1
   var stack = []                        // collection of array and object open braces (for checking matched braces)
 
   main_loop: while (idx < lim) {
-    vi = -1
-    err_info = null
+    voff = -1
+    info = null
     prev_tok = tok
     tok = src[idx]
     tok_switch: switch (tok) {
@@ -37,40 +37,40 @@ function tokenize (cb, src, off, lim) {
         continue
       case 91:                              // [    ARRAY START
       case 123:                             // {    OBJECT START
-        vi = idx++
+        voff = idx++
         stack.push(tok)
         break
       case 93:                              // ]    ARRAY END
         if (stack.pop() !== 91) {
-          err_info = {tok: 93, msg: 'unexpected array end'}
+          info = {tok: 93, msg: 'unexpected array end'}
           tok = 0
         }
-        vi = idx++
+        voff = idx++
         break
       case 125:                             // }    OBJECT END
         if (stack.pop() !== 123) {
-          err_info = {tok: 123, msg: 'unexpected object end'}
+          info = {tok: 123, msg: 'unexpected object end'}
           tok = 0
         }
-        vi = idx++
+        voff = idx++
         break
       case 58:                              // :    COLON
         if (koff === -1) {
-          err_info = { tok: 34, msg: 'unexpected colon' }
+          info = { tok: 34, msg: 'unexpected colon' }
           tok = 0
-          vi = idx++
+          voff = idx++
           break
         } else {
           idx++
           continue
         }
       case 34:                              // "    QUOTE
-        vi = idx
+        voff = idx
           // console.log('string at ', vi)
         while (true) {
           while (src[++idx] !== 34) {       // "    QUOTE
             if (idx === lim) {
-              err_info = { tok: 34, msg: 'unterminated string' }
+              info = { tok: 34, msg: 'unterminated string' }
               tok = 0
               break tok_switch
             }
@@ -83,25 +83,25 @@ function tokenize (cb, src, off, lim) {
         idx++       // move past end quote
         if (koff === -1) {
           // set string index (potential key)
-          koff = vi
-          vi = -1
+          koff = voff
+          voff = -1
           klim = idx
           continue  // main_loop: next tokens could be :-and-value or something else
         }
         break
       case 110:                                 // n  null
       case 116:                                 // t  true
-        vi = idx
+        voff = idx
         idx += 4
         break
       case 102:                                 // f  false
-        vi = idx
+        voff = idx
         idx += 5
         break
       case 48:case 49:case 50:case 51:case 52:   // digits 0-4
       case 53:case 54:case 55:case 56:case 57:   // digits 5-9
       case 45:                                   // '-'   ('+' is not legal here)
-        vi = idx
+        voff = idx
         tok = 78                                 // N  Number
         while (++idx < lim) {
           switch (src[idx]) {
@@ -132,26 +132,26 @@ function tokenize (cb, src, off, lim) {
                 idx++
                 break
             default:
-                err_info = { tok: 44, msg: 'unexpected comma' }
+                info = { tok: 44, msg: 'unexpected comma' }
                 tok = 0
-                vi = idx++
+                voff = idx++
                 break tok_switch
         }
         continue
       default:
-        vi = idx++
-        err_info = { tok: 0, msg: 'unexpected character' }
+        voff = idx++
+        info = { tok: 0, msg: 'unexpected character' }
         tok = 0
     }
     var cbres = -1
     if (koff === -1) {
       // non-string
-      cbres = cb(src, -1, 0, tok, vi, idx - vi, err_info)
+      cbres = cb(src, -1, 0, tok, voff, idx - voff, info)
     } else {
       // string
       if (prev_tok === 58) {                              // COLON
         // string with-preceding-colon
-        cbres = cb(src, koff, klim, tok, vi, idx - vi, err_info)
+        cbres = cb(src, koff, klim, tok, voff, idx - voff, info)
       } else {
         // string no-preceding-colon
         cbres = cb(src, -1, 0, 34, koff, (klim - koff))              // 34 STRING (QUOTE)
@@ -163,7 +163,7 @@ function tokenize (cb, src, off, lim) {
         }
         // in valid JSON vi cannot be a key because:
         // { string:string, string:string, ... } are consumed in pairs
-        cbres = cb(src, -1, 0, tok, vi, idx - vi, err_info)
+        cbres = cb(src, -1, 0, tok, voff, idx - voff, info)
       }
       koff = -1; klim = -1
     }
