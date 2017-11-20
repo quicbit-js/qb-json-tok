@@ -4,8 +4,8 @@ function tokenize (cb, src, off, lim) {
 
   var idx = off                         // current index offset into buf
   var tok = 0                           // current token being handled
-  var si = -1                           // current or previous string index
-  var slen = 0                          // previous string length  (may be a key or string value)
+  var koff = -1
+  var klim = -1
   var vi                                // value start index
   var err_info
   var prev_tok
@@ -55,7 +55,7 @@ function tokenize (cb, src, off, lim) {
         vi = idx++
         break
       case 58:                              // :    COLON
-        if (si === -1) {
+        if (koff === -1) {
           err_info = { tok: 34, msg: 'unexpected colon' }
           tok = 0
           vi = idx++
@@ -81,11 +81,11 @@ function tokenize (cb, src, off, lim) {
           }
         }
         idx++       // move past end quote
-        if (si === -1) {
+        if (koff === -1) {
           // set string index (potential key)
-          si = vi
+          koff = vi
           vi = -1
-          slen = idx - si
+          klim = idx
           continue  // main_loop: next tokens could be :-and-value or something else
         }
         break
@@ -144,20 +144,20 @@ function tokenize (cb, src, off, lim) {
         tok = 0
     }
     var cbres = -1
-    if (si === -1) {
+    if (koff === -1) {
       // non-string
       cbres = cb(src, -1, 0, tok, vi, idx - vi, err_info)
     } else {
       // string
       if (prev_tok === 58) {                              // COLON
         // string with-preceding-colon
-        cbres = cb(src, si, slen, tok, vi, idx - vi, err_info)
+        cbres = cb(src, koff, klim, tok, vi, idx - vi, err_info)
       } else {
         // string no-preceding-colon
-        cbres = cb(src, -1, 0, 34, si, slen)              // 34 STRING (QUOTE)
+        cbres = cb(src, -1, 0, 34, koff, (klim - koff))              // 34 STRING (QUOTE)
         if (cbres > 0) {
           // reset state (prev_tok and vi are reset in main_loop)
-          tok = 0; idx = cbres; si = -1; slen = 0; continue         // cb requested index
+          tok = 0; idx = cbres; koff = -1; klim = -1; continue         // cb requested index
         } else if (cbres === 0) {
           return                                                    // cb requested stop
         }
@@ -165,19 +165,19 @@ function tokenize (cb, src, off, lim) {
         // { string:string, string:string, ... } are consumed in pairs
         cbres = cb(src, -1, 0, tok, vi, idx - vi, err_info)
       }
-      si = -1; slen = 0
+      koff = -1; klim = -1
     }
 
     if (cbres > 0) {
       // reset state (prev_tok and vi are reset in main_loop)
-      tok = 0; idx = cbres; si = -1; slen = 0                       // cb requested index
+      tok = 0; idx = cbres; koff = -1; klim = -1                       // cb requested index
     } else if (cbres === 0) {
       return                                                        // cb requested stop
     }
   }  // end main_loop: while(idx < lim) {...
 
-    if (si !== -1) {
-        cb(src, -1, 0, 34, si, slen)  // push out pending string (34 = QUOTE) as a value
+    if (koff !== -1) {
+        cb(src, -1, 0, 34, koff, (klim - koff))  // push out pending string (34 = QUOTE) as a value
     }
     cb(src, -1, 0, 69, idx, 0)      // 'E' - end
 }

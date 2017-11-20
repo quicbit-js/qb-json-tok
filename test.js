@@ -19,7 +19,7 @@ function format_callback (opt) {
   var return_on_err = opt.ret_on_err
   var return_fn = opt.return_fn || function (ret) { return ret }      // controls return value for testing
 
-  return function format_callback (buf, key_off, key_len, tok, val_off, val_len, err) {
+  return function format_callback (buf, koff, klim, tok, val_off, val_len, err) {
     var val_str
     var ret = -1    // returning 0 halts process, > 0 continues at that index.  other values (neg, undefined,...) continue as normal.
     switch (tok) {
@@ -36,10 +36,10 @@ function format_callback (opt) {
       default:
         val_str = String.fromCharCode(tok) + '@' + val_off
     }
-    if (key_off === -1) {
+    if (koff === -1) {
       log(val_str)                                            // value only
     } else {
-      log('K' + key_len + '@' + key_off + ':' + val_str)      // key and value
+      log('K' + (klim - koff) + '@' + koff + ':' + val_str)      // key and value
     }
 
     return return_fn(ret)  // 0 will halt.  a positive number will parse at that offset. anything else will continue to next.
