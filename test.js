@@ -30,7 +30,10 @@ function format_callback (opt) {
         val_str = 'N' + val_len + '@' + val_off
         break
       case TOK.ERR:
-        val_str = ('!' + val_len + '@' + val_off + ': ' + JSON.stringify(info))
+        var tok_str = info.tok > 32
+          ?  '"' + String.fromCharCode(info.tok) + '" (' + info.tok + ')'
+          : '(' + info.tok + ')'
+        val_str = '!' + val_len + '@' + val_off + ' ' + info.where + ', tok: ' + tok_str
         ret = return_on_err
         break
       default:
@@ -57,24 +60,27 @@ test('tokenize', function (t) {
   t.tableAssert(
     [
       [ 'input',             'tok_opt',  'cb_opt',         'exp'                                                      ],
-      [ '"x"',                null,       null,            [ 'S3@0', 'E@3']                                           ],
-      [ '-3.05',              null,       null,            [ 'N5@0', 'E@5' ]                                          ],
-      [ '  true',             null,       null,            [ 't@2', 'E@6' ]                                           ],
-      [ ' false',             null,       null,            [ 'f@1', 'E@6' ]                                           ],
-      [ '{"a":1}',            null,       null,            [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                         ],
-      [ '{"a" :1}',           null,       null,            [ '{@0','K3@1:N1@6','}@7', 'E@8' ]                         ],
-      [ '{"a": 1}',           null,       null,            [ '{@0','K3@1:N1@6','}@7', 'E@8' ]                         ],
-      [ '"\\""',              null,       null,            [ 'S4@0', 'E@4' ]                                          ],
-      [ '"\\\\"',             null,       null,            [ 'S4@0', 'E@4' ]                                          ],
-      [ '\t\t"x\\a\r"  ',     null,       null,            [ 'S6@2', 'E@10']                                          ],
-      [ '"\\"x\\"a\r\\""',    null,       null,            [ 'S11@0', 'E@11']                                         ],
-      [ ' [0,1,2]',           null,       null,            [ '[@1','N1@2','N1@4','N1@6',']@7','E@8']                  ],
-      [ '["a", "bb"] ',       null,       null,            [ '[@0','S3@1','S4@6',']@10', 'E@12' ]                     ],
-      [ '"x", 4\n, null, 3.2e5 , true, false',      null, null,   [ 'S3@0','N1@5','n@9','N5@15','t@23', 'f@29', 'E@34']         ],
-      [ '["a",1.3 \n\t{ "b" : ["v", "w"]\n}\t\n ]', null, null,   [ '[@0','S3@1','N3@5','{@11','K3@13:[@19','S3@20','S3@25',']@28','}@30',']@34', 'E@35' ] ],
+      // [ '"x"',                null,       null,            [ 'S3@0', 'E@3']                                           ],
+      // [ '-3.05',              null,       null,            [ 'N5@0', 'E@5' ]                                          ],
+      // [ '  true',             null,       null,            [ 't@2', 'E@6' ]                                           ],
+      // [ ' false',             null,       null,            [ 'f@1', 'E@6' ]                                           ],
+      // [ '{"a":1}',            null,       null,            [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                         ],
+      // [ '{"a" :1}',           null,       null,            [ '{@0','K3@1:N1@6','}@7', 'E@8' ]                         ],
+      // [ '{"a": 1}',           null,       null,            [ '{@0','K3@1:N1@6','}@7', 'E@8' ]                         ],
+      // [ '"\\""',              null,       null,            [ 'S4@0', 'E@4' ]                                          ],
+      // [ '"\\\\"',             null,       null,            [ 'S4@0', 'E@4' ]                                          ],
+      // [ '\t\t"x\\a\r"  ',     null,       null,            [ 'S6@2', 'E@10']                                          ],
+      // [ '"\\"x\\"a\r\\""',    null,       null,            [ 'S11@0', 'E@11']                                         ],
+      // [ ' [0,1,2]',           null,       null,            [ '[@1','N1@2','N1@4','N1@6',']@7','E@8']                  ],
+      // [ '["a", "bb"] ',       null,       null,            [ '[@0','S3@1','S4@6',']@10', 'E@12' ]                     ],
+      // [ '"x", 4\n, null, 3.2e5 , true, false',      null, null,   [ 'S3@0','N1@5','n@9','N5@15','t@23', 'f@29', 'E@34']         ],
+      // [ '["a",1.3,\n\t{ "b" : ["v", "w"]\n}\t\n ]', null, null,   [ '[@0','S3@1','N3@5','{@11','K3@13:[@19','S3@20','S3@25',']@28','}@30',']@34', 'E@35' ] ],
 
       // errors
-      [ ',[,:["b"]',          null,       null,                    [ '!1@0: {"msg":"unexpected comma"}', '[@1', '!1@2: {"msg":"unexpected comma"}', '!1@3: {"msg":"unexpected colon"}', '[@4', 'S3@5', ']@8', 'E@9' ] ],
+      [
+        ',[,:["b"]',          null,       null,
+        [ '!1@0 before first value, tok: "," (44)', '[@1', '!1@2 in array, before first value, tok: "," (44)', '!1@3 in array, before first value, tok: ":" (58)', '[@4', 'S3@5', ']@8', 'E@9' ]
+      ],
       [ '"ab',                null,       null,                    [ '!3@0: {"msg":"unterminated string"}', 'E@3' ]  ],
       [ '"\\\\\\"',           null,       null,                    [ '!5@0: {"msg":"unterminated string"}', 'E@5' ]  ],
       [ '"abc"%',             null,       {ret_on_err: 0},         [ 'S5@0', '!1@5: {"msg":"unexpected character"}' ]  ],
@@ -102,7 +108,7 @@ test('tokenize', function (t) {
 test('callback return', function (t) {
   t.tableAssert(
     [
-      [ 'input',     'at_tok', 'ret',    'exp'                                          ],
+      [ 'input',     'at_tok', 'cb_ret',  'exp'                                          ],
       [ '{"a":1}',    0,        6,        [ '{@0','}@6', 'E@7' ]                               ],
       [ '{"a":1}',    1,        6,        [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                   ],
       [ '{"a":1}',    2,        6,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@6: {"msg":"unexpected object end"}', 'E@7' ]             ],

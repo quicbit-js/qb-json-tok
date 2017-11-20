@@ -16,6 +16,26 @@ var KEY =         0x1000
 
 var FIRST =       0x2000     // is first value in an object or array
 
+function state_to_str (state) {
+  if (state == null) {
+    return 'undefined'
+  }
+  var ret = ''
+  switch (state & CTX_MASK) {
+    case CTX_OBJ: ret += 'in object, '; break
+    case CTX_ARR: ret += 'in array, '; break
+    case CTX_UNK: ret += 'unknown context, '; break
+  }
+  switch (state & POS_MASK) {
+    case BEFORE: ret += 'before'; break
+    case AFTER: ret += 'after'; break
+    case INSIDE: ret += 'inside'; break
+  }
+  if (state & FIRST) { ret += ' first' }
+  ret += (state & KEY) ? ' key' : ' value'
+  return ret
+}
+
 var NUM_CHARS = '-0123456789'      // legal number start chars
 var VAL_CHARS = '"ntf' + NUM_CHARS
 
@@ -67,7 +87,7 @@ function state_map () {
   map( CTX_ARR | BEFORE|FIRST|VAL,  ']',        CTX_UNK | AFTER|VAL )   // empty array
   map( CTX_ARR | AFTER|VAL,         ']',        CTX_UNK | AFTER|VAL )
   map( CTX_OBJ | BEFORE|FIRST|KEY,  '}',        CTX_UNK | AFTER|VAL )   // empty object
-  map( CTX_OBJ | BEFORE|KEY,        '}',        CTX_UNK | AFTER|VAL )
+  map( CTX_OBJ | AFTER|VAL,         '}',        CTX_UNK | AFTER|VAL )
 
   return ret
 }
@@ -82,34 +102,41 @@ function map_ascii (s, code) {
   return ret
 }
 
-var WHITESPACE = map_ascii('\n\t\r\f', 1)
+var WHITESPACE = map_ascii('\n\t\r ', 1)
 // var NUM_CHARS_ALL = NUM_CHARS + '+.eE'   // all legal number chars
 
 function tokenize (cb, src, off, lim) {
   off = off || 0
   lim = lim == null ? src.length : lim
 
-  var idx = off           // current index offset into buf
-  var koff = -1           
+  var idx = off                     // current index offset into buf
+  var koff = -1
   var klim = -1
-  var tok = -1             // current token being handled
-  var voff = -1           // value start index
-  var info = null         // extra information about errors or split values
-  var stack = []          // collection of array and object open braces (for checking matched braces)
-  var state = CTX_NONE|BEFORE|VAL   // see state_map()
-  var pstate = 0                    // previous state
+  var voff = -1                     // value start index
+  var info = null                   // extra information about errors or split values
+  var stack = []                    // collection of array and object open braces (for checking matched braces)
+  var state0 = CTX_NONE|BEFORE|FIRST|VAL  // state we are transitioning from. see state_map()
+  var state1 = 0                    // new state
+  var tok = -1                      // current token/byte being handled
 
-  while (idx < lim && WHITESPACE[src[idx]]) { idx++ }
+  // skip whitspace and set tok prior to loop
 
   while (idx < lim) {
     voff = -1
     info = null
     tok = src[idx]
-    pstate = state
-    state = STATES[pstate + tok]
-    if (state === undefined) {
-      info = {msg: 'unexpected character'}
+    if (WHITESPACE[tok]) {
+      while (WHITESPACE[src[++idx]] && idx < lim) {}
+      if (idx === lim) {
+        break
+      }
+      tok = src[idx]
+    }
+    state1 = STATES[state0 + tok]
+    if (state1 === undefined) {
+      info = { msg: 'unexpected character', where: state_to_str(state0), tok: tok }
       tok = 0
+      voff = idx++
     } else {
       tok_switch: switch (tok) {
         case 34:                              // "    QUOTE
@@ -118,7 +145,7 @@ function tokenize (cb, src, off, lim) {
           while (true) {
             while (src[++idx] !== 34) {
               if (idx === lim) {
-                info = {msg: 'unterminated string' }
+                info = {msg: 'unterminated string'}
                 tok = 0
                 break tok_switch
               }
@@ -130,11 +157,10 @@ function tokenize (cb, src, off, lim) {
           }
           idx++       // move past end quote
 
-          if (pstate & (POS_MASK | KEYVAL_MASK) === (BEFORE | KEY)) {
+          if ((state0 & (POS_MASK | KEYVAL_MASK)) === (BEFORE | KEY)) {
             koff = voff
             klim = idx
-            voff = -1
-            continue  // main_loop: next tokens could be :-and-value or something else
+            voff = -1         // indicate no val
           }
           break
         case 91:                                  // [    ARRAY START
@@ -146,15 +172,15 @@ function tokenize (cb, src, off, lim) {
         case 125:                                 // }    OBJECT END
           voff = idx++
           stack.pop()
-          (state & CTX_MASK) === CTX_NONE || err('bad context')
+          ;(state1 & CTX_MASK) === CTX_UNK || err('bad context')
           if (stack.length > 0) {
-            state |= stack[stack.length-1] === 91 ? CTX_ARR : CTX_OBJ   // CTX_NONE is zero
+            state1 |= stack[stack.length-1] === 91 ? CTX_ARR : CTX_OBJ   // CTX_NONE is zero
           }
           break
         case 44:                                  // ,    COMMA
         case 58:                                  // :    COLON
           idx++
-          continue
+          break
         case 110:                                 // n    null
         case 116:                                 // t    true
           voff = idx
@@ -190,14 +216,19 @@ function tokenize (cb, src, off, lim) {
           info = {msg: 'unexpected character' }
           tok = 0
       }
-    }
 
-    var cbres = cb(src, -1, 0, tok, voff, idx - voff, info)
-    if (cbres > 0) {
-      // reset state (prev_tok and vi are reset in main_loop)
-      tok = 0; idx = cbres; koff = -1; klim = -1                       // cb requested index
-    } else if (cbres === 0) {
-      return                                                        // cb requested stop
+      // update state 
+      state0 = state1
+    }
+    if (voff !== -1) {
+      var cbres = cb(src, koff, klim, tok, voff, idx - voff, info)
+      koff = -1
+      klim = -1
+      if (cbres > 0) {
+        err('cb index not handled')
+      } else if (cbres === 0) {
+        return                                                        // cb requested stop
+      }
     }
   }  // end main_loop: while(idx < lim) {...
 
