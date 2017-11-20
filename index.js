@@ -2,14 +2,15 @@ function tokenize (cb, src, off, lim) {
   off = off || 0
   lim = lim == null ? src.length : lim
 
-  var idx = off                         // current index offset into buf
-  var koff = -1
+  var idx = off           // current index offset into buf
+  var koff = -1           
   var klim = -1
-  var tok = 0                           // current token being handled
-  var voff = -1                         // value start index
-  var info = null                       // extra information about errors or split values
+  var tok = 0             // current token being handled
+  var voff = -1           // value start index
+  var info = null         // extra information about errors or split values
   var prev_tok = -1
-  var stack = []                        // collection of array and object open braces (for checking matched braces)
+  var stack = []          // collection of array and object open braces (for checking matched braces)
+  var in_what = 0         // 0 = nothing, 91 = array, 123 = object (same as starting ascii code)
 
   main_loop: while (idx < lim) {
     voff = -1
@@ -35,40 +36,11 @@ function tokenize (cb, src, off, lim) {
         }
         tok = prev_tok                      // whitespace is not a token
         continue
-      case 91:                              // [    ARRAY START
-      case 123:                             // {    OBJECT START
-        voff = idx++
-        stack.push(tok)
-        break
-      case 93:                              // ]    ARRAY END
-        if (stack.pop() !== 91) {
-          info = {msg: 'unexpected array end'}
-          tok = 0
-        }
-        voff = idx++
-        break
-      case 125:                             // }    OBJECT END
-        if (stack.pop() !== 123) {
-          info = {msg: 'unexpected object end'}
-          tok = 0
-        }
-        voff = idx++
-        break
-      case 58:                              // :    COLON
-        if (koff === -1) {
-          info = {msg: 'unexpected colon' }
-          tok = 0
-          voff = idx++
-          break
-        } else {
-          idx++
-          continue
-        }
       case 34:                              // "    QUOTE
         voff = idx
-          // console.log('string at ', vi)
+        // console.log('string at ', vi)
         while (true) {
-          while (src[++idx] !== 34) {       // "    QUOTE
+          while (src[++idx] !== 34) {
             if (idx === lim) {
               info = {msg: 'unterminated string' }
               tok = 0
@@ -89,6 +61,42 @@ function tokenize (cb, src, off, lim) {
           continue  // main_loop: next tokens could be :-and-value or something else
         }
         break
+      case 91:                              // [    ARRAY START
+        in_what = 91
+        voff = idx++
+        stack.push(tok)
+        break
+      case 123:                             // {    OBJECT START
+        in_what = 123
+        voff = idx++
+        stack.push(tok)
+        break
+      case 93:                              // ]    ARRAY END
+        if (stack.pop() !== 91) {
+          info = {msg: 'unexpected array end'}
+          tok = 0
+        }
+        in_what = stack.length === 0 ? 0 : stack[stack.length-1]
+        voff = idx++
+        break
+      case 125:                             // }    OBJECT END
+        if (stack.pop() !== 123) {
+          info = {msg: 'unexpected object end'}
+          tok = 0
+        }
+        in_what = stack.length === 0 ? 0 : stack[stack.length-1]
+        voff = idx++
+        break
+      case 58:                              // :    COLON
+        if (koff === -1) {
+          info = {msg: 'unexpected colon' }
+          tok = 0
+          voff = idx++
+          break
+        } else {
+          idx++
+          continue
+        }
       case 110:                                 // n  null
       case 116:                                 // t  true
         voff = idx
