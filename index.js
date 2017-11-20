@@ -120,110 +120,122 @@ function tokenize (cb, src, off, lim) {
   var tok = -1                      // current token/byte being handled
 
   // skip whitspace and set tok prior to loop
+  while (WHITESPACE[src[idx]] === 1 && idx < lim) {idx++}
 
   while (idx < lim) {
     voff = -1
     info = null
     tok = src[idx]
-    if (WHITESPACE[tok]) {
-      while (WHITESPACE[src[++idx]] && idx < lim) {}
-      if (idx === lim) {
-        break
-      }
-      tok = src[idx]
-    }
-    state1 = STATES[state0 + tok]
-    if (state1 === undefined) {
-      info = { msg: 'unexpected character', where: state_to_str(state0), tok: tok }
-      tok = 0
-      voff = idx++
-    } else {
-      tok_switch: switch (tok) {
-        case 34:                              // "    QUOTE
-          voff = idx
-          // console.log('string at ', vi)
-          while (true) {
-            while (src[++idx] !== 34) {
-              if (idx === lim) {
-                info = {msg: 'unterminated string', where: state_to_str(state0 | INSIDE), tok: tok }
-                tok = 0
-                break tok_switch
-              }
+    tok_switch: switch (tok) {
+      case 9: case 10: case 13: case 32:
+        if (WHITESPACE[src[++idx]] && idx < lim) {
+          while (WHITESPACE[src[++idx]] === 1 && idx < lim) {}
+        }
+        continue
+
+      // placing logic below this point allows fast skip of whitespace (above)
+
+      case 34:                              // "    QUOTE
+        state1 = STATES[state0 + tok]
+        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        voff = idx
+        while (true) {
+          while (src[++idx] !== 34) {
+            if (idx === lim) {
+              info = {msg: 'unterminated string', where: state_to_str(state0 | INSIDE), tok: tok }
+              tok = 0
+              break tok_switch
             }
-            for (var i=1; src[idx - i] === 92; i++) {}  // \    count BACKSLASH
+          }
+          if (src[idx - 1] === 92) {
+            for (var i=2; src[idx - i] === 92; i++) {}  // \    count BACKSLASH
             if (i % 2) {
               break
             }
+          } else {
+            break
           }
-          idx++       // move past end quote
+        }
+        idx++       // move past end quote
 
-          if ((state0 & (POS_MASK | KEYVAL_MASK)) === (BEFORE | KEY)) {
-            koff = voff
-            klim = idx
-            voff = -1         // indicate no val
+        if ((state0 & (POS_MASK | KEYVAL_MASK)) === (BEFORE | KEY)) {
+          koff = voff
+          klim = idx
+          voff = -1                   // indicate no value
+        }
+        state0 = state1
+        break
+      case 91:                                  // [    ARRAY START
+      case 123:                                 // {    OBJECT START
+        state1 = STATES[state0 + tok]
+        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        voff = idx++
+        stack.push(tok)
+        state0 = state1
+        break
+      case 93:                                  // ]    ARRAY END
+      case 125:                                 // }    OBJECT END
+        state1 = STATES[state0 + tok]
+        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        voff = idx++
+        stack.pop()
+        if (stack.length > 0) {
+          state1 |= stack[stack.length-1] === 91 ? CTX_ARR : CTX_OBJ   // CTX_NONE is zero
+        }
+        state0 = state1
+        break
+      case 44:                                  // ,    COMMA
+      case 58:                                  // :    COLON
+        state1 = STATES[state0 + tok]
+        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        idx++
+        state0 = state1
+        break
+      case 110:                                 // n    null
+      case 116:                                 // t    true
+        state1 = STATES[state0 + tok]
+        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        voff = idx
+        idx += 4
+        state0 = state1
+        break
+      case 102:                                 // f    false
+        state1 = STATES[state0 + tok]
+        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        voff = idx
+        idx += 5
+        state0 = state1
+        break
+      case 48:case 49:case 50:case 51:case 52:   // digits 0-4
+      case 53:case 54:case 55:case 56:case 57:   // digits 5-9
+      case 45:                                   // '-'   ('+' is not legal here)
+        state1 = STATES[state0 + tok]
+        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        voff = idx
+        tok = TOK.NUM                                 // N  Number
+        while (++idx < lim) {
+          switch (src[idx]) {
+            // skip all possibly-valid characters - as fast as we can
+            case 48:case 49:case 50:case 51:case 52:   // digits 0-4
+            case 53:case 54:case 55:case 56:case 57:   // digits 5-9
+            case 43:                                   // +
+            case 45:                                   // -
+            case 46:                                   // .
+            case 69:                                   // E
+            case 101:                                  // e
+              break
+            default:
+              state0 = state1
+              break tok_switch
           }
-          break
-        case 91:                                  // [    ARRAY START
-        case 123:                                 // {    OBJECT START
-          voff = idx++
-          stack.push(tok)
-          break
-        case 93:                                  // ]    ARRAY END
-        case 125:                                 // }    OBJECT END
-          voff = idx++
-          stack.pop()
-          ;(state1 & CTX_MASK) === CTX_UNK || err('bad context')
-          if (stack.length > 0) {
-            state1 |= stack[stack.length-1] === 91 ? CTX_ARR : CTX_OBJ   // CTX_NONE is zero
-          }
-          break
-        case 44:                                  // ,    COMMA
-        case 58:                                  // :    COLON
-          idx++
-          break
-        case 110:                                 // n    null
-        case 116:                                 // t    true
-          voff = idx
-          idx += 4
-          break
-        case 102:                                 // f    false
-          voff = idx
-          idx += 5
-          break
-        case 48:case 49:case 50:case 51:case 52:   // digits 0-4
-        case 53:case 54:case 55:case 56:case 57:   // digits 5-9
-        case 45:                                   // '-'   ('+' is not legal here)
-          voff = idx
-          tok = TOK.NUM                                 // N  Number
-          while (++idx < lim) {
-            switch (src[idx]) {
-              // skip all possibly-valid characters - as fast as we can
-              case 48:case 49:case 50:case 51:case 52:   // digits 0-4
-              case 53:case 54:case 55:case 56:case 57:   // digits 5-9
-              case 43:                                   // +
-              case 45:                                   // -
-              case 46:                                   // .
-              case 69:                                   // E
-              case 101:                                  // e
-                break
-              default:
-                break tok_switch
-            }
-          }
-          if ((state0 & CTX_MASK) !== CTX_NONE) {
-            info = {msg: 'unterminated number', where: state_to_str(state0 | INSIDE), tok: tok }
-            tok = 0
-          }
-          break
-        default:
-          voff = idx++
-          info = {msg: 'unexpected character', where: state_to_str(state0), tok: tok }
-          tok = 0
-      }
-
-      // update state 
-      state0 = state1
+        }
+        if ((state0 & CTX_MASK) !== CTX_NONE) { info = {msg: 'unterminated number', where: state_to_str(state0 | INSIDE), tok: tok }; tok = 0; break }
+        break
+      default:
+        voff = idx++
+        info = {msg: 'unexpected character', where: state_to_str(state0), tok: tok }; tok = 0
     }
+
     if (voff !== -1) {
       var cbres = cb(src, koff, klim, tok, voff, idx - voff, info)
       koff = -1
