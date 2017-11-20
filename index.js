@@ -42,21 +42,21 @@ function tokenize (cb, src, off, lim) {
         break
       case 93:                              // ]    ARRAY END
         if (stack.pop() !== 91) {
-          info = {tok: 93, msg: 'unexpected array end'}
+          info = {msg: 'unexpected array end'}
           tok = 0
         }
         voff = idx++
         break
       case 125:                             // }    OBJECT END
         if (stack.pop() !== 123) {
-          info = {tok: 123, msg: 'unexpected object end'}
+          info = {msg: 'unexpected object end'}
           tok = 0
         }
         voff = idx++
         break
       case 58:                              // :    COLON
         if (koff === -1) {
-          info = { tok: 34, msg: 'unexpected colon' }
+          info = {msg: 'unexpected colon' }
           tok = 0
           voff = idx++
           break
@@ -70,7 +70,7 @@ function tokenize (cb, src, off, lim) {
         while (true) {
           while (src[++idx] !== 34) {       // "    QUOTE
             if (idx === lim) {
-              info = { tok: 34, msg: 'unterminated string' }
+              info = {msg: 'unterminated string' }
               tok = 0
               break tok_switch
             }
@@ -132,7 +132,7 @@ function tokenize (cb, src, off, lim) {
                 idx++
                 break
             default:
-                info = { tok: 44, msg: 'unexpected comma' }
+                info = {msg: 'unexpected comma' }
                 tok = 0
                 voff = idx++
                 break tok_switch
@@ -140,7 +140,7 @@ function tokenize (cb, src, off, lim) {
         continue
       default:
         voff = idx++
-        info = { tok: 0, msg: 'unexpected character' }
+        info = {msg: 'unexpected character' }
         tok = 0
     }
     var cbres = -1
@@ -194,6 +194,15 @@ tokenize.TOK = {
   OBJ_BEG: 123,   // '{'
   OBJ_END: 125,   // '}'
   ERR: 0,         // error.  check err_info for information
+}
+
+tokenize.WHERE = {
+  BEFORE_KEY:     'before_key',  // before an object key was started (before the start quote)
+  IN_KEY:         'in_key',      // inside an object key (before the end quote)
+  AFTER_KEY:      'after_key',   // after an object key, but before the colon ':'
+  BEFORE_VAL:     'before_val',  // before an object or array value (after the comma, colon, or starting array brace
+  IN_VAL:         'in_val',      // inside an object or array value (includes uncertain number cases like 12.3<end>)
+  AFTER_VAL:      'after_val',   // after an object or array value, but before the comma or closing array or object brace
 }
 
 module.exports = tokenize
