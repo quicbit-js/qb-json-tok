@@ -81,7 +81,7 @@ function state_map () {
   map( CTX_OBJ | AFTER|KEY,         ':',        CTX_OBJ | BEFORE|VAL )
   map( CTX_OBJ | BEFORE|VAL,        VAL_CHARS,  CTX_OBJ | AFTER|VAL )
   map( CTX_OBJ | AFTER|VAL,         ',',        CTX_OBJ | BEFORE|KEY )
-  map( CTX_OBJ | BEFORE|KEY,        ':',        CTX_OBJ | BEFORE|VAL )  // etc ...
+  map( CTX_OBJ | BEFORE|KEY,        '"',        CTX_OBJ | AFTER|KEY )  // etc ...
 
   // end contexts - check stack for next context
   map( CTX_ARR | BEFORE|FIRST|VAL,  ']',        CTX_UNK | AFTER|VAL )   // empty array
@@ -145,7 +145,7 @@ function tokenize (cb, src, off, lim) {
           while (true) {
             while (src[++idx] !== 34) {
               if (idx === lim) {
-                info = {msg: 'unterminated string'}
+                info = {msg: 'unterminated string', where: state_to_str(state0 | INSIDE), tok: tok }
                 tok = 0
                 break tok_switch
               }
@@ -210,10 +210,14 @@ function tokenize (cb, src, off, lim) {
                 break tok_switch
             }
           }
+          if ((state0 & CTX_MASK) !== CTX_NONE) {
+            info = {msg: 'unterminated number', where: state_to_str(state0 | INSIDE), tok: tok }
+            tok = 0
+          }
           break
         default:
           voff = idx++
-          info = {msg: 'unexpected character' }
+          info = {msg: 'unexpected character', where: state_to_str(state0), tok: tok }
           tok = 0
       }
 
