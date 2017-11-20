@@ -3,9 +3,7 @@ var tokenize = require('.')
 var utf8 = require('qb-utf8-ez')
 
 // useful token constants:
-var ERROR  = 0        // ERROR          (parser-defined)
-var STRING = 34       // "  QUOTE       (parser-defined)
-var NUMBER = 78       // 'N' NUMBER     (parser-defined)
+var TOK = tokenize.TOK
 
 // other tokens are intuitive - they are the same char code as the first byte parsed
 // 't' for true
@@ -25,13 +23,13 @@ function format_callback (opt) {
     var val_str
     var ret = -1    // returning 0 halts process, > 0 continues at that index.  other values (neg, undefined,...) continue as normal.
     switch (tok) {
-      case STRING:
+      case TOK.STR:
         val_str = 'S' + val_len + '@' + val_off
         break
-      case NUMBER:
+      case TOK.NUM:
         val_str = 'N' + val_len + '@' + val_off
         break
-      case ERROR:
+      case TOK.ERR:
         val_str = ('!' + val_len + '@' + val_off + ': ' + JSON.stringify(err))
         ret = return_on_err
         break
@@ -59,7 +57,7 @@ test('tokenize', function (t) {
   t.tableAssert(
     [
       [ 'input',             'tok_opt',  'cb_opt',         'exp'                                                      ],
-      [ '"\\""',              {end:null}, null,            [ 'S4@0', 'E@4' ]                                          ],
+      [ '"\\""',              null,       null,            [ 'S4@0', 'E@4' ]                                          ],
       [ '"\\\\"',             null,       null,            [ 'S4@0', 'E@4' ]                                          ],
       [ '{"a":1}',            null,       null,            [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                         ],
       [ '{"a" :1}',           null,       null,            [ '{@0','K3@1:N1@6','}@7', 'E@8' ]                         ],
@@ -70,7 +68,7 @@ test('tokenize', function (t) {
       [ '"x"',                null,       null,            [ 'S3@0', 'E@3']                                           ],
       [ '\t\t"x\\a\r"  ',     null,       null,            [ 'S6@2', 'E@10']                                          ],
       [ '"\\"x\\"a\r\\""',    null,       null,            [ 'S11@0', 'E@11']                                         ],
-      [ ' [0,1,2]',           {end: 70}, null,            [ '[@1','N1@2','N1@4','N1@6',']@7','F@8']                   ],  // set end token to 'F'
+      [ ' [0,1,2]',           null,       null,            [ '[@1','N1@2','N1@4','N1@6',']@7','E@8']                  ],
       [ '["a", "bb"] ',       null,       null,            [ '[@0','S3@1','S4@6',']@10', 'E@12' ]                     ],
       [ '"x", 4\n, null, 3.2e5 , true, false',      null, null,   [ 'S3@0','N1@5','n@9','N5@15','t@23', 'f@29', 'E@34']         ],
       [ '["a",1.3 \n\t{ "b" : ["v", "w"]\n}\t\n ]', null, null,   [ '[@0','S3@1','N3@5','{@11','K3@13:[@19','S3@20','S3@25',']@28','}@30',']@34', 'E@35' ] ],
@@ -102,7 +100,7 @@ test('tokenize', function (t) {
       var hector = t.hector()
       cb_opt.log = hector
       var cb = format_callback(cb_opt)
-      tokenize(utf8.buffer(input), cb, tok_opt)
+      tokenize(cb, utf8.buffer(input))
       return hector.arg(0)
     }
   )
@@ -114,15 +112,15 @@ test('callback return', function (t) {
       [ 'input',     'at_tok', 'ret',    'exp'                                          ],
       [ '{"a":1}',    0,        6,        [ '{@0','}@6', 'E@7' ]                               ],
       [ '{"a":1}',    1,        6,        [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                   ],
-      [ '{"a":1}',    2,        6,        [ '{@0','K3@1:N1@5','}@6','}@6', 'E@7' ]             ],
+      [ '{"a":1}',    2,        6,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@6: {"tok":123,"msg":"unexpected object end"}', 'E@7' ]             ],
       [ '{"a":1}',    3,        6,        [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                   ],
       [ '{"a":1}',    2,        0,        [ '{@0','K3@1:N1@5','}@6' ]                          ],
-      [ '{"a":1}',    2,        1,        [ '{@0','K3@1:N1@5','}@6','K3@1:N1@5','}@6', 'E@7' ] ],
+      [ '{"a":1}',    2,        1,        [ '{@0', 'K3@1:N1@5', '}@6', 'K3@1:N1@5', '!1@6: {"tok":123,"msg":"unexpected object end"}', 'E@7' ] ],
       [ '{"a":1}',    2,        2,        [ '{@0','K3@1:N1@5','}@6','!1@2: {"tok":0,"msg":"unexpected character"}','!4@3: {"tok":34,"msg":"unterminated string"}', 'E@7' ]     ],
       [ '{"a":1}',    2,        3,        [ '{@0','K3@1:N1@5','}@6','!4@3: {"tok":34,"msg":"unterminated string"}', 'E@7' ]     ],
-      [ '{"a":1}',    2,        4,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@4: {"tok":34,"msg":"unexpected colon"}', 'N1@5', '}@6', 'E@7' ]      ],
-      [ '{"a":1}',    2,        5,        [ '{@0','K3@1:N1@5','}@6','N1@5','}@6', 'E@7' ]      ],
-      [ '{"a":1}',    2,        6,        [ '{@0','K3@1:N1@5','}@6','}@6', 'E@7' ]             ],
+      [ '{"a":1}',    2,        4,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@4: {"tok":34,"msg":"unexpected colon"}', 'N1@5', '!1@6: {"tok":123,"msg":"unexpected object end"}', 'E@7' ]      ],
+      [ '{"a":1}',    2,        5,        [ '{@0', 'K3@1:N1@5', '}@6', 'N1@5', '!1@6: {"tok":123,"msg":"unexpected object end"}', 'E@7' ]      ],
+      [ '{"a":1}',    2,        6,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@6: {"tok":123,"msg":"unexpected object end"}', 'E@7' ]             ],
       [ '{"a":1}',    2,        7,        [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                   ],
       [ '{"a":1}',    2,        8,        [ '{@0','K3@1:N1@5','}@6', 'E@8' ]                   ],
       [ '{"a":1}',    2,        0,        [ '{@0','K3@1:N1@5','}@6' ]                          ],
@@ -155,7 +153,7 @@ test('callback return', function (t) {
           }
         }
       })
-      tokenize(utf8.buffer(input), cb)
+      tokenize(cb, utf8.buffer(input))
       return hector.arg(0)
     }
   )

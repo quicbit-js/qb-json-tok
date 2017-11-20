@@ -1,28 +1,28 @@
-function tokenize (buf, cb, opt) {
-  opt = opt || {}
-  var end = opt.end || 69     // default end to 'E'
-  var lim = buf.length        // buffer limit
+function tokenize (cb, src, off, lim) {
+  off = off || 0
+  lim = lim == null ? src.length : lim
 
-  var idx = 0                           // current index offset into buf
+  var idx = off                         // current index offset into buf
   var tok = 0                           // current token being handled
   var si = -1                           // current or previous string index
   var slen = 0                          // previous string length  (may be a key or string value)
   var vi                                // value start index
   var err_info
   var prev_tok
+  var stack = []                        // collection of array and object open braces (for checking matched braces)
 
   main_loop: while (idx < lim) {
     vi = -1
     err_info = null
     prev_tok = tok
-    tok = buf[idx]
+    tok = src[idx]
     tok_switch: switch (tok) {
       case 9:             // TAB
       case 10:            // NL
       case 13:            // CR
       case 32:            // SPACE
         while (++idx < lim) {
-          switch (buf[idx]) {
+          switch (src[idx]) {
             case 9:                     // TAB
             case 10:                    // NL
             case 13:                    // CR
@@ -36,9 +36,22 @@ function tokenize (buf, cb, opt) {
         tok = prev_tok                      // whitespace is not a token
         continue
       case 91:                              // [    ARRAY START
-      case 93:                              // ]    ARRAY END
       case 123:                             // {    OBJECT START
+        vi = idx++
+        stack.push(tok)
+        break
+      case 93:                              // ]    ARRAY END
+        if (stack.pop() !== 91) {
+          err_info = {tok: 93, msg: 'unexpected array end'}
+          tok = 0
+        }
+        vi = idx++
+        break
       case 125:                             // }    OBJECT END
+        if (stack.pop() !== 123) {
+          err_info = {tok: 123, msg: 'unexpected object end'}
+          tok = 0
+        }
         vi = idx++
         break
       case 58:                              // :    COLON
@@ -55,14 +68,14 @@ function tokenize (buf, cb, opt) {
         vi = idx
           // console.log('string at ', vi)
         while (true) {
-          while (buf[++idx] !== 34) {       // "    QUOTE
+          while (src[++idx] !== 34) {       // "    QUOTE
             if (idx === lim) {
               err_info = { tok: 34, msg: 'unterminated string' }
               tok = 0
               break tok_switch
             }
           }
-          for (var i=1; buf[idx - i] === 92; i++) {}  // \    count BACKSLASH
+          for (var i=1; src[idx - i] === 92; i++) {}  // \    count BACKSLASH
           if (i % 2) {
             break
           }
@@ -91,7 +104,7 @@ function tokenize (buf, cb, opt) {
         vi = idx
         tok = 78                                 // N  Number
         while (++idx < lim) {
-          switch (buf[idx]) {
+          switch (src[idx]) {
             // skip all possibly-valid characters - as fast as we can
             case 48:case 49:case 50:case 51:case 52:   // digits 0-4
             case 53:case 54:case 55:case 56:case 57:   // digits 5-9
@@ -133,15 +146,15 @@ function tokenize (buf, cb, opt) {
     var cbres = -1
     if (si === -1) {
       // non-string
-      cbres = cb(buf, -1, 0, tok, vi, idx - vi, err_info)
+      cbres = cb(src, -1, 0, tok, vi, idx - vi, err_info)
     } else {
       // string
       if (prev_tok === 58) {                              // COLON
         // string with-preceding-colon
-        cbres = cb(buf, si, slen, tok, vi, idx - vi, err_info)
+        cbres = cb(src, si, slen, tok, vi, idx - vi, err_info)
       } else {
         // string no-preceding-colon
-        cbres = cb(buf, -1, 0, 34, si, slen)              // 34 STRING (QUOTE)
+        cbres = cb(src, -1, 0, 34, si, slen)              // 34 STRING (QUOTE)
         if (cbres > 0) {
           // reset state (prev_tok and vi are reset in main_loop)
           tok = 0; idx = cbres; si = -1; slen = 0; continue         // cb requested index
@@ -150,7 +163,7 @@ function tokenize (buf, cb, opt) {
         }
         // in valid JSON vi cannot be a key because:
         // { string:string, string:string, ... } are consumed in pairs
-        cbres = cb(buf, -1, 0, tok, vi, idx - vi, err_info)
+        cbres = cb(src, -1, 0, tok, vi, idx - vi, err_info)
       }
       si = -1; slen = 0
     }
@@ -164,23 +177,23 @@ function tokenize (buf, cb, opt) {
   }  // end main_loop: while(idx < lim) {...
 
     if (si !== -1) {
-        cb(buf, -1, 0, 34, si, slen)  // push out pending string (34 = QUOTE) as a value
+        cb(src, -1, 0, 34, si, slen)  // push out pending string (34 = QUOTE) as a value
     }
-    cb(buf, -1, 0, end, idx, 0)
+    cb(src, -1, 0, 69, idx, 0)      // 'E' - end
 }
 
-tokenize.CODE = {
-  END: 69,
-  STR: 34,
-  ERR: 0,
-  NUM: 78,
-  ARR_BEG: 91,
-  ARR_END: 93,
-  OBJ_BEG: 123,
-  OBJ_END: 125,
-  TRU: 116,
-  FAL: 102,
-  NUL: 110,
+tokenize.TOK = {
+  STR: 34,        // '"'
+  END: 69,        // 'E' - buffer limit reached
+  NUM: 78,        // 'N'
+  ARR_BEG: 91,    // '['
+  ARR_END: 93,    // ']'
+  FAL: 102,       // 'f'
+  NUL: 110,       // 'n'
+  TRU: 116,       // 't'
+  OBJ_BEG: 123,   // '{'
+  OBJ_END: 125,   // '}'
+  ERR: 0,         // error.  check err_info for information
 }
 
 module.exports = tokenize
