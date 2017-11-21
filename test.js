@@ -19,23 +19,24 @@ function format_callback (opt) {
   var return_on_err = opt.ret_on_err
   var return_fn = opt.return_fn || function (ret) { return ret }      // controls return value for testing
 
-  return function format_callback (buf, koff, klim, tok, val_off, val_len, info) {
+  return function format_callback (buf, koff, klim, tok, voff, vlim, info) {
     var val_str
+    var vlen = vlim - voff
     var ret = -1    // returning 0 halts process, > 0 continues at that index.  other values (neg, undefined,...) continue as normal.
     switch (tok) {
       case TOK.STR:
-        val_str = 'S' + val_len + '@' + val_off
+        val_str = 'S' + vlen + '@' + voff
         break
       case TOK.NUM:
-        val_str = 'N' + val_len + '@' + val_off
+        val_str = 'N' + vlen + '@' + voff
         break
       case TOK.ERR:
         var tok_str = ', tok: ' + (info.tok > 32 ? '"' + String.fromCharCode(info.tok) + '"' : info.tok)
-        val_str = '!' + val_len + '@' + val_off + ' ' + info.where + tok_str
+        val_str = '!' + vlen + '@' + voff + ' ' + info.where + tok_str
         ret = return_on_err
         break
       default:
-        val_str = String.fromCharCode(tok) + '@' + val_off
+        val_str = String.fromCharCode(tok) + '@' + voff
     }
     if (koff === -1) {
       log(val_str)                                            // value only

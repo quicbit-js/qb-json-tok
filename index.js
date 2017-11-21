@@ -220,7 +220,7 @@ function tokenize (cb, src, off, lim) {
     }
 
     if (voff !== -1) {
-      var cbres = cb(src, koff, klim, tok, voff, idx - voff, info)
+      var cbres = cb(src, koff, klim, tok, voff, idx, info)
       koff = -1
       klim = -1
       if (cbres > 0) {
@@ -235,7 +235,7 @@ function tokenize (cb, src, off, lim) {
   // if (koff !== -1) {
   //     cb(src, -1, 0, 34, koff, (klim - koff))  // push out pending string
   // }
-  cb(src, -1, 0, TOK.END, idx, 0)
+  cb(src, -1, -1, TOK.END, idx, idx)
 }
 
 var TOK = {
