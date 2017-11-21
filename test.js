@@ -30,10 +30,8 @@ function format_callback (opt) {
         val_str = 'N' + val_len + '@' + val_off
         break
       case TOK.ERR:
-        var tok_str = info.tok > 32
-          ?  '"' + String.fromCharCode(info.tok) + '" (' + info.tok + ')'
-          : '(' + info.tok + ')'
-        val_str = '!' + val_len + '@' + val_off + ' ' + info.where + ', tok: ' + tok_str
+        var tok_str = ', tok: ' + (info.tok > 32 ? '"' + String.fromCharCode(info.tok) + '"' : info.tok)
+        val_str = '!' + val_len + '@' + val_off + ' ' + info.where + tok_str
         ret = return_on_err
         break
       default:
@@ -79,20 +77,20 @@ test('tokenize', function (t) {
       // errors
       [
         ',[,:["b"]',          null,       null,
-        [ '!1@0 before first value, tok: "," (44)', '[@1', '!1@2 in array, before first value, tok: "," (44)', '!1@3 in array, before first value, tok: ":" (58)', '[@4', 'S3@5', ']@8', 'E@9' ]
+        [ '!1@0 before first value, tok: ","', '[@1', '!1@2 in array, before first value, tok: ","', '!1@3 in array, before first value, tok: ":"', '[@4', 'S3@5', ']@8', 'E@9' ]
       ],
-      [ '"ab',                null,       null,                    [ '!3@0 inside first value, tok: """ (34)', 'E@3' ]  ],
-      [ '"\\\\\\"',           null,       null,                    [ '!5@0 inside first value, tok: """ (34)', 'E@5' ]  ],
-      [ '"abc"%',             null,       {ret_on_err: 0},         [ 'S5@0', '!1@5 after value, tok: "%" (37)' ]  ],
-      [ '0*',                 null,       null,                    [ 'N1@0', '!1@1 after value, tok: "*" (42)', 'E@2' ]  ],
-      [ '{"a":3^6}',          null,       {ret_on_err: 0},         [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^" (94)' ] ],
-      [ '{"a":3^6}',          null,       {ret_on_err: -1},        [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^" (94)', '!1@7 in object, after value, tok: "6" (54)', '}@8', 'E@9' ]  ],
-      [ '{"a":3^6}',          null,       {ret_on_err: null},      [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^" (94)', '!1@7 in object, after value, tok: "6" (54)', '}@8', 'E@9' ]  ],
-      [ '{"a":^}',            null,       {ret_on_err: 0},         [ '{@0', 'K3@1:!1@5 in object, before value, tok: "^" (94)' ]  ],
-      [ '"ab',                null,       {ret_on_err: 0},         [ '!3@0 inside first value, tok: """ (34)' ]  ],
-      [ '0*',                 null,       {ret_on_err: 0},         [ 'N1@0', '!1@1 after value, tok: "*" (42)' ] ],
-      [ '0*',                 null,       {ret_on_err: -1},        [ 'N1@0', '!1@1 after value, tok: "*" (42)', 'E@2' ] ],
-      [ '{"a":1,"b:2,"c":3}', null,       {ret_on_err: undefined},    [ '{@0', 'K3@1:N1@5', 'K6@7:!1@13 in object, after key, tok: "c" (99)', '!1@14 in object, after key, tok: """ (34)', 'N1@16', '}@17', 'E@18' ] ],
+      [ '"ab',                null,       null,                    [ '!3@0 inside first value, tok: """', 'E@3' ]  ],
+      [ '"\\\\\\"',           null,       null,                    [ '!5@0 inside first value, tok: """', 'E@5' ]  ],
+      [ '"abc"%',             null,       {ret_on_err: 0},         [ 'S5@0', '!1@5 after value, tok: "%"' ]  ],
+      [ '0*',                 null,       null,                    [ 'N1@0', '!1@1 after value, tok: "*"', 'E@2' ]  ],
+      [ '{"a":3^6}',          null,       {ret_on_err: 0},         [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^"' ] ],
+      [ '{"a":3^6}',          null,       {ret_on_err: -1},        [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^"', '!1@7 in object, after value, tok: "6"', '}@8', 'E@9' ]  ],
+      [ '{"a":3^6}',          null,       {ret_on_err: null},      [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^"', '!1@7 in object, after value, tok: "6"', '}@8', 'E@9' ]  ],
+      [ '{"a":^}',            null,       {ret_on_err: 0},         [ '{@0', 'K3@1:!1@5 in object, before value, tok: "^"' ]  ],
+      [ '"ab',                null,       {ret_on_err: 0},         [ '!3@0 inside first value, tok: """' ]  ],
+      [ '0*',                 null,       {ret_on_err: 0},         [ 'N1@0', '!1@1 after value, tok: "*"' ] ],
+      [ '0*',                 null,       {ret_on_err: -1},        [ 'N1@0', '!1@1 after value, tok: "*"', 'E@2' ] ],
+      [ '{"a":1,"b:2,"c":3}', null,       {ret_on_err: undefined},    [ '{@0', 'K3@1:N1@5', 'K6@7:!1@13 in object, after key, tok: "c"', '!1@14 in object, after key, tok: """', 'N1@16', '}@17', 'E@18' ] ],
     ],
     function (input, tok_opt, cb_opt) {
       cb_opt = cb_opt || {}
@@ -111,29 +109,25 @@ test('callback return', function (t) {
       [ 'input',     'at_tok', 'cb_ret',  'exp'                                          ],
       [ '{"a":1}',    0,        6,        [ '{@0','}@6', 'E@7' ]                               ],
       [ '{"a":1}',    1,        6,        [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                   ],
-      [ '{"a":1}',    2,        6,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@6: {"msg":"unexpected object end"}', 'E@7' ]             ],
+      [ '{"a":1}',    2,        6,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@6 after value, tok: "}"', 'E@7' ]            ],
       [ '{"a":1}',    3,        6,        [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                   ],
-      [ '{"a":1}',    2,        0,        [ '{@0','K3@1:N1@5','}@6' ]                          ],
-      [ '{"a":1}',    2,        1,        [ '{@0', 'K3@1:N1@5', '}@6', 'S3@1', '!1@4: {"msg":"unexpected colon"}', 'N1@5', '!1@6: {"msg":"unexpected object end"}', 'E@7' ] ],
-      [ '{"a":1}',    2,        2,        [ '{@0','K3@1:N1@5','}@6','!1@2: {"msg":"unexpected character"}','!4@3: {"msg":"unterminated string"}', 'E@7' ] ],
-      [ '{"a":1}',    2,        3,        [ '{@0','K3@1:N1@5','}@6','!4@3: {"msg":"unterminated string"}', 'E@7' ] ],
-      [ '{"a":1}',    2,        4,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@4: {"msg":"unexpected colon"}', 'N1@5', '!1@6: {"msg":"unexpected object end"}', 'E@7' ] ],
-      [ '{"a":1}',    2,        5,        [ '{@0', 'K3@1:N1@5', '}@6', 'N1@5', '!1@6: {"msg":"unexpected object end"}', 'E@7' ]      ],
-      [ '{"a":1}',    2,        6,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@6: {"msg":"unexpected object end"}', 'E@7' ]             ],
+      [ '{"a":1}',    1,        0,        [ '{@0', 'K3@1:N1@5' ]                         ],
+      [ '{"a":1}',    1,        4,        [ '{@0', 'K3@1:N1@5', '!1@4 in object, after value, tok: ":"', '!1@5 in object, after value, tok: "1"', '}@6', 'E@7' ] ],
+      [ '{"a":1}',    2,        5,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@5 after value, tok: "1"', '!1@6 after value, tok: "}"', 'E@7' ]   ],
+      [ '{"a":1}',    2,        6,        [ '{@0', 'K3@1:N1@5', '}@6', '!1@6 after value, tok: "}"', 'E@7' ]         ],
       [ '{"a":1}',    2,        7,        [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                   ],
       [ '{"a":1}',    2,        8,        [ '{@0','K3@1:N1@5','}@6', 'E@8' ]                   ],
       [ '{"a":1}',    2,        0,        [ '{@0','K3@1:N1@5','}@6' ]                          ],
       [ '{"a":1}',    2,        null,     [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                   ],
       [ '["a","b"]',  2,        null,     [ '[@0','S3@1','S3@5',']@8', 'E@9' ]                 ],
       [ '["a","b"]',  2,        0,        [ '[@0','S3@1','S3@5' ]                              ],
-      [ '["a","b"]',  2,        1,        [ '[@0','S3@1','S3@5','S3@1','S3@5',']@8', 'E@9' ]   ],
-      [ '["a","b"]',  2,        4,        [ '[@0', 'S3@1', 'S3@5', '!1@4: {"msg":"unexpected comma"}', 'S3@5', ']@8', 'E@9' ] ],
-      [ '["a","b"]',  2,        5,        [ '[@0','S3@1','S3@5','S3@5',']@8', 'E@9' ]          ],
+      [ '["a","b"]',  2,        1,        [ '[@0', 'S3@1', 'S3@5', '!1@1 in array, after value, tok: """', '!1@2 in array, after value, tok: "a"', '!1@3 in array, after value, tok: """', 'S3@5', ']@8', 'E@9' ]  ],
+      [ '["a","b"]',  2,        4,        [ '[@0', 'S3@1', 'S3@5', 'S3@5', ']@8', 'E@9' ] ],
+      [ '["a","b"]',  2,        5,        [ '[@0', 'S3@1', 'S3@5', '!1@5 in array, after value, tok: """', '!1@6 in array, after value, tok: "b"', '!1@7 in array, after value, tok: """', ']@8', 'E@9' ]   ],
       [ '["a","b"]',  2,        8,        [ '[@0','S3@1','S3@5',']@8', 'E@9' ]                 ],
-      [ '["a","b"]',  3,        8,        [ '[@0', 'S3@1', 'S3@5', ']@8', '!1@8: {"msg":"unexpected array end"}', 'E@9' ] ],
-      [ '["a","b"]',  1,        1,        [ '[@0','S3@1','S3@1','S3@5',']@8', 'E@9' ]          ],
-      [ '["a","b"]',  1,        4,        [ '[@0', 'S3@1', '!1@4: {"msg":"unexpected comma"}', 'S3@5', ']@8', 'E@9' ]     ],
-      [ '["a","b"]',  1,        5,        [ '[@0','S3@1','S3@5',']@8', 'E@9' ]                 ],
+      [ '["a","b"]',  3,        8,        [ '[@0', 'S3@1', 'S3@5', ']@8', '!1@8 after value, tok: "]"', 'E@9' ] ],
+      [ '["a","b"]',  1,        4,        [ '[@0', 'S3@1', 'S3@5', ']@8', 'E@9' ]   ],
+      [ '["a","b"]',  1,        7,        [ '[@0', 'S3@1', '!1@7 in array, after value, tok: """', ']@8', 'E@9' ]   ],
       [ '["a","b"]',  1,        8,        [ '[@0','S3@1',']@8', 'E@9' ]                        ],
       [ '["a","b"]',  1,        9,        [ '[@0','S3@1', 'E@9' ]                              ],
       [ '["a","b"]',  1,        0,        [ '[@0','S3@1' ]                                     ],

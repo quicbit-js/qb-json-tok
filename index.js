@@ -33,6 +33,7 @@ function state_to_str (state) {
   }
   if (state & FIRST) { ret += ' first' }
   ret += (state & KEY) ? ' key' : ' value'
+
   return ret
 }
 
@@ -94,8 +95,6 @@ function state_map () {
 
 var STATES = state_map()
 
-function err (msg) { throw Error(msg) }
-
 function map_ascii (s, code) {
   var ret = []
   for (var i=0; i<s.length; i++) { ret[s.charCodeAt(i)] = code }
@@ -105,6 +104,9 @@ function map_ascii (s, code) {
 var WHITESPACE = map_ascii('\n\t\r ', 1)
 // var NUM_CHARS_ALL = NUM_CHARS + '+.eE'   // all legal number chars
 
+function inf (msg, state, tok) {
+  return {msg: msg || 'unexpected character', where: state_to_str(state), tok: tok}
+}
 function tokenize (cb, src, off, lim) {
   off = off || 0
   lim = lim == null ? src.length : lim
@@ -136,16 +138,12 @@ function tokenize (cb, src, off, lim) {
       // placing logic below this point allows fast skip of whitespace (above)
 
       case 34:                              // "    QUOTE
-        state1 = STATES[state0 + tok]
-        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        state1 = STATES[state0|tok]
+        if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
         voff = idx
         while (true) {
           while (src[++idx] !== 34) {
-            if (idx === lim) {
-              info = {msg: 'unterminated string', where: state_to_str(state0 | INSIDE), tok: tok }
-              tok = 0
-              break tok_switch
-            }
+            if (idx === lim) { info = inf('unterminated string', state0|INSIDE, tok); tok = 0; break tok_switch }
           }
           if (src[idx - 1] === 92) {
             for (var i=2; src[idx - i] === 92; i++) {}  // \    count BACKSLASH
@@ -167,41 +165,39 @@ function tokenize (cb, src, off, lim) {
         break
       case 91:                                  // [    ARRAY START
       case 123:                                 // {    OBJECT START
-        state1 = STATES[state0 + tok]
-        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        state1 = STATES[state0|tok]
+        if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
         voff = idx++
         stack.push(tok)
         state0 = state1
         break
       case 93:                                  // ]    ARRAY END
       case 125:                                 // }    OBJECT END
-        state1 = STATES[state0 + tok]
-        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        state1 = STATES[state0|tok]
+        if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
         voff = idx++
         stack.pop()
-        if (stack.length > 0) {
-          state1 |= stack[stack.length-1] === 91 ? CTX_ARR : CTX_OBJ   // CTX_NONE is zero
-        }
+        state1 |= stack.length === 0 ? CTX_NONE : (stack[stack.length-1] === 91 ? CTX_ARR : CTX_OBJ)
         state0 = state1
         break
       case 44:                                  // ,    COMMA
       case 58:                                  // :    COLON
-        state1 = STATES[state0 + tok]
-        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        state1 = STATES[state0|tok]
+        if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
         idx++
         state0 = state1
         break
       case 110:                                 // n    null
       case 116:                                 // t    true
-        state1 = STATES[state0 + tok]
-        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        state1 = STATES[state0|tok]
+        if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
         voff = idx
         idx += 4
         state0 = state1
         break
       case 102:                                 // f    false
-        state1 = STATES[state0 + tok]
-        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        state1 = STATES[state0|tok]
+        if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
         voff = idx
         idx += 5
         state0 = state1
@@ -209,8 +205,8 @@ function tokenize (cb, src, off, lim) {
       case 48:case 49:case 50:case 51:case 52:   // digits 0-4
       case 53:case 54:case 55:case 56:case 57:   // digits 5-9
       case 45:                                   // '-'   ('+' is not legal here)
-        state1 = STATES[state0 + tok]
-        if (!state1) { info = { msg: 'unexpected string', where: state_to_str(state0), tok: tok }; tok = 0; voff = idx++; break }
+        state1 = STATES[state0|tok]
+        if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
         voff = idx
         tok = TOK.NUM                                 // N  Number
         while (++idx < lim) {
@@ -241,7 +237,7 @@ function tokenize (cb, src, off, lim) {
       koff = -1
       klim = -1
       if (cbres > 0) {
-        err('cb index not handled')
+        idx = cbres
       } else if (cbres === 0) {
         return                                                        // cb requested stop
       }

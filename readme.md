@@ -18,6 +18,8 @@
 
 Fast (~350 MB/sec) and light (1.6 kb *zero dependecy*) tokenizer for custom JSON/UTF-8 parsers.
 
+**qb-json-tok now includes validation and incremental parsing - as of version 3.0!**
+
 qb-json-tok allows flexibility and efficiency by performing minimum processing 
 and leaving heavy-lifting, such as value decoding, as optional work for the callback (delegate)
 
@@ -35,45 +37,87 @@ and leaving heavy-lifting, such as value decoding, as optional work for the call
 
 The tokenizer is just a function with four inputs:
 
-    buffer:    A UTF-8 encoded array containing ANY JSON value such as an object, quoted
+    src:       A UTF-8 encoded array containing ANY JSON value such as an object, quoted
                string, array, or valid JSON number.  IOW, it doesn't have to be a {...} object.
                
     callback:  A function called for each token encountered.
     
-        buffer:      the buffer being parsed
-        keyIndex:    index start of a key (in a key/value pair), or -1 if this is a stand-alone or array value
-        keyLength:   length of key in UTF-8 bytes (in a key/value pair) or 0 if this is a stand-alone or array value
-        token:       integer representing token encountered.  In almost all cases, this is the same as the 
-                     first character encountered.  'n' for null, 't' for true, '{' for object start...
-        valIndex:    index start of a stand-alone value or the value in a key/value pair
-        valLength:   length of value in UTF-8 bytes - a stand alone value or value in a key/value pair
+        src:        the buffer being parsed
+        koff:       index of key start (inclusive) in current object, in arrays koff is -1
+        klim:       index of key limit (non-inclusive) in current object, in arrays koff is -1
+        token:      integer representing the type encountered.  In most cases, token is the ASCII of the 
+                    first character encountered.  'n' for null, 't' for true, '{' for object start.
+                    TOK defines these token codes by name:
+                        
+                    {
+                      STR: 34,        // '"'
+                      END: 69,        // 'E'
+                      NUM: 78,        // 'N'
+                      ARR_BEG: 91,    // '['
+                      ARR_END: 93,    // ']'
+                      FAL: 102,       // 'f'
+                      NUL: 110,       // 'n'
+                      TRU: 116,       // 't'
+                      OBJ_BEG: 123,   // '{'
+                      OBJ_END: 125,   // '}'
+                      ERR: 0,         // error. check err_info for information
+                    }
+                        
+                        
+        voff:       index of value offset (inclusive) in current object or array
+        vlim:       index of value limit (non-inclusive) in current object or array
         
-        info:        information object for error and end events        
-                     if there is an error, err will be an object containing:
-                        { 
-                            msg:     the error message
-                            tok:     the token where the error occured (unterminated string error will have tok: 34) OR
-                                     zero if the token was invalid/unknown.
-                        }
-                     if then end of buffer is reached, this contains the parse state that can be passed to continue parsing
+        info:       (object) if tok === TOK.ERR or tok === TOK.END, then info holds details that can be 
+                    used to recover or handle values split across buffers.
                      
-        returns:     the value returned controls processing: 
-                        returning zero halts the tokenizer.
-                        returning a positive number will continue tokenizing at that offset 
-                                (backtrack or skip forward to the returned offset).  Note that
+        return:     the value returned controls processing: 
+                        returning 0 halts the tokenizer.
+                        returning a positive number will continue tokenizing at that offset (it is not possible to return to 0)
+                                (backtrack or skip forward).  Note that
                                 jumping to the value 'xyz' of a key value pair:
                                         { "a": "xyz" }...
-                                will make the tokenizer return just a string value, not the k
+                                will make the tokenizer return just a string value
+                                
                         returning anything else (undefined, null, negative number) - will cause 
                                 processing to continue.
                      
-                     NOTE: as of version 2.0, if you want to halt processing on error, you must check
-                     the return token for error (zero) and return zero from the function.
-    
-    options
-        end:         the token used to indicate when parsing completes.  defaults to 69 ('E'). this option is only for backward compatibility
-        
     state            for incremental parsing, you can pass the state object returned by the end callback into this argument.
+
+## Ends and Errors
+
+Buffer termination and errors are also indicated by the token 'tok'.  This means that if we handle codes in a single switch
+statement, error and end cases will fall into the default case instead of being forgotten and unchecked.
+
+    function callback (src, koff, klim, tok, voff, vlim, info) {
+        switch (tok) {
+            case TOK.NUM:
+                ...
+            case TOK.ERR:                           // if we forgot to handle this case, the default case will get it.
+                return my_error_handler(err_info)
+            default:
+                error('case not handled')       
+        }
+    }
+    
+Then 'info' object has more information for ERR and END cases.  In conjuction with the return-control to 
+reset parsing position, info allows you to define recovery strategies for error cases and parsing 
+values split across buffers.
+
+fields:
+
+    info
+    {
+      msg:    (string) message explaining the issue
+      where:  (string) where the error occurred relative to tokens being parsed.  where codes are defined in
+              INFO_WHERE: {
+                BEFORE_KEY:     'before_key',  // before an object key was started (before the first '"')
+                IN_KEY:         'in_key',      // inside an object key (before the second '"')
+                AFTER_KEY:      'after_key',   // after an object key, but before the colon ':'
+                BEFORE_VAL:     'before_val',  // before an object or array value (after the comma, colon, or starting array brace
+                IN_VAL:         'in_val',      // inside an object or array value (includes uncertain number cases like 12.3<end>)
+                AFTER_VAL:      'after_val',   // after an object or array value, but before the comma or closing array or object brace
+              }
+    }
 
 ## Example
 
