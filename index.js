@@ -108,16 +108,17 @@ function inf (msg, state, tok) {
   return {msg: msg || 'unexpected character', where: state_to_str(state), tok: tok}
 }
 
-function index_of_esc (src, off, lim, b, e, escaped) {
-    var adj = escaped ? 1 : 0
-    b !== e || err('escape and byte cannot be the same')
-    lim = lim == null ? src.length : lim
-    for (var i = off || 0; i < lim; i++) {
-        if (src[i] === b) {
-            // count number of escapes going backwards (n = escape count +1)
-            for (var n = 1; src[i-n] === e && i-n >= off; n++) {}
-            if ((n + adj) % 2) {
-                return i - adj      // for escaped, return the index of the preceding escape
+function skip_str (src, off, lim) {
+    for (var i = off; i < lim; i++) {
+        if (src[i] === 34) {
+            if (src[i-1] === 92) {
+                // count number of escapes going backwards (n = escape count +1)
+                for (var n = 2; src[i-n] === 92 && i-n >= off; n++) {}          // \ BACKSLASH escape
+                if (n % 2 === 1) {
+                    return i
+                }
+            } else {
+                return i
             }
         }
     }
@@ -158,9 +159,8 @@ function tokenize (cb, src, off, lim) {
         state1 = STATES[state0|tok]
         if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
         voff = idx
-        idx = index_of_esc(src, idx+1, lim, 34, 92)
-        if (idx === -1) { idx = lim; info = inf('unterminated string', state0|INSIDE, tok); tok = 0; break }
-
+        idx = skip_str(src, idx+1, lim, 34, 92)
+        if (idx === -1) {idx = lim; info = inf('unterminated string', state0|INSIDE, tok); tok = 0; break }
         idx++       // move past end quote
 
         if ((state0 & (POS_MASK | KEYVAL_MASK)) === (BEFORE | KEY)) {
@@ -216,7 +216,6 @@ function tokenize (cb, src, off, lim) {
         if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
         voff = idx
         tok = TOK.NUM                                 // N  Number
-
         while (ALL_NUM_CHARS[src[++idx]] === 1 && idx < lim) {}
         if (idx === lim && (state0 & CTX_MASK) !== CTX_NONE) { info = inf('unterminated number', state0|INSIDE, tok); tok = 0; break }
         state0 = state1
