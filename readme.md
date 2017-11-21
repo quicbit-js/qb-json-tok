@@ -33,9 +33,10 @@ and leaving heavy-lifting, such as value decoding, as optional work for the call
 
 ## UPDATED API (OVERHAULED FROM 2.2.2)
 
-The tokenize function has been updated significantly to support validation, context and recovery options
-and *almost* at speeds approximately as fast the prior non-validating version (**200 MB/second** compared with 350).
-That's a big benefit at a still very high speed.
+The tokenize function has been updated significantly to support validation, incremental parsing and
+improved recovery
+at *nearly* the speeds of the prior non-validating version (**200 MB/second** compared with 350).
+But we feel that the structural validation is a big benefit at a still very high speed.
 
 You can't get much faster than a single integer array lookup in javascript, and so json-tok defines 
 an integer-to-integer state map using a single integer array call for state transition - and uses an integer stack 
@@ -324,25 +325,3 @@ well on other types of errors.  If your system needs to handle smart-recovery fr
 files, the speed of the tokenizer could allow many strategies to be actively tried across
 a large sample region and choose the best recovery option of a variety tried.
 
-## API CHANGE NOTE (version 1.x -> 2.x)
-
-**In version 2.0, returns codes and error handling changed as follows:**
-  
-1. 0xF1 is no longer used for Number token.  ASCII 78 ('N') is used instead.
-    
-2. Exceptions are no longer thrown during processing.  Instead, a 0 (zero) token
-   is passed to the callback with value index and length showing the location and span of
-   the error.
-
-3. The callback return value is no longer simply a truthy value that indicates
-   whether to stop.  The return value, if greater than zero, is the index
-   at which to continue processing.  If zero, processing will halt.  If negative
-   or anyting else (null/undefined) processing continues.
-    
-Changes 2 and 3 were important in that they allowed the tokenizer to stay simple and fast, 
-while giving a fine degree of control over unexpected sequences in a way that aligns 
-naturally with the handling in the callback.  All that is required to manage errors is to 
-add an <code>if( token === 0 )</code> or <code>case 0:</code> statement to the callback.  The change of the
-Number token to 'N' also simplified handling of output since, unlike 0xF1, it mapped naturally to an 
-ASCII character like all the other ()non-error) tokens.
-  
