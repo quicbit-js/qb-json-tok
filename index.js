@@ -150,7 +150,15 @@ function tokenize (cb, src, off, lim) {
         }
         continue
 
-      // placing logic below this point allows fast skip of whitespace (above)
+      // placing (somewhat redundant) logic below this point allows fast skip of whitespace (above)
+
+        case 44:                                  // ,    COMMA
+        case 58:                                  // :    COLON
+            state1 = STATES[state0|tok]
+            if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
+            idx++
+            state0 = state1
+            continue
 
       case 34:                              // "    QUOTE
         state1 = STATES[state0|tok]
@@ -167,6 +175,7 @@ function tokenize (cb, src, off, lim) {
         }
         state0 = state1
         break
+
       case 91:                                  // [    ARRAY START
       case 123:                                 // {    OBJECT START
         state1 = STATES[state0|tok]
@@ -175,6 +184,7 @@ function tokenize (cb, src, off, lim) {
         stack.push(tok)
         state0 = state1
         break
+
       case 93:                                  // ]    ARRAY END
       case 125:                                 // }    OBJECT END
         state1 = STATES[state0|tok]
@@ -184,13 +194,7 @@ function tokenize (cb, src, off, lim) {
         state1 |= stack.length === 0 ? CTX_NONE : (stack[stack.length-1] === 91 ? CTX_ARR : CTX_OBJ)
         state0 = state1
         break
-      case 44:                                  // ,    COMMA
-      case 58:                                  // :    COLON
-        state1 = STATES[state0|tok]
-        if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
-        idx++
-        state0 = state1
-        break
+
       case 110:                                 // n    null
       case 116:                                 // t    true
         state1 = STATES[state0|tok]
@@ -199,6 +203,7 @@ function tokenize (cb, src, off, lim) {
         idx += 4
         state0 = state1
         break
+
       case 102:                                 // f    false
         state1 = STATES[state0|tok]
         if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
@@ -206,6 +211,7 @@ function tokenize (cb, src, off, lim) {
         idx += 5
         state0 = state1
         break
+
       case 48:case 49:case 50:case 51:case 52:   // digits 0-4
       case 53:case 54:case 55:case 56:case 57:   // digits 5-9
       case 45:                                   // '-'   ('+' is not legal here)
@@ -217,6 +223,7 @@ function tokenize (cb, src, off, lim) {
         if (idx === lim && (state0 & CTX_MASK) !== CTX_NONE) { info = inf('unterminated number', state0|INSIDE, tok); tok = 0; break }
         state0 = state1
         break
+
       default:
         voff = idx++
         info = {msg: 'unexpected character', where: state_to_str(state0), tok: tok }; tok = 0
