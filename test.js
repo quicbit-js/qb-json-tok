@@ -1,9 +1,9 @@
 var test = require('test-kit').tape()
 var utf8 = require('qb-utf8-ez')
-var tokenize = require('.')
+var jtok = require('.')
 
 // useful token constants:
-var TOK = tokenize.TOK
+var TOK = jtok.TOK
 
 // other tokens are intuitive - they are the same char code as the first byte parsed
 // 't' for true
@@ -84,7 +84,7 @@ test('tokenize', function (t) {
       var hector = t.hector()
       cb_opt.log = hector
       var cb = format_callback(cb_opt)
-      tokenize(cb, utf8.buffer(input), off, lim)
+      jtok.tokenize(cb, utf8.buffer(input), off, lim)
       return hector.arg(0)
     }
   )
@@ -121,7 +121,7 @@ test('tokenize - errors', function (t) {
       var hector = t.hector()
       cb_opt.log = hector
       var cb = format_callback(cb_opt)
-      tokenize(cb, utf8.buffer(input))
+      jtok.tokenize(cb, utf8.buffer(input))
       return hector.arg(0)
     }
   )
@@ -171,7 +171,7 @@ test('callback return', function (t) {
           }
         }
       })
-      tokenize(cb, utf8.buffer(input))
+      jtok.tokenize(cb, utf8.buffer(input))
       return hector.arg(0)
     }
   )
@@ -184,5 +184,5 @@ test('state_to_str', function (t) {
     [ 0x100,                  'in object, value' ],
     [ 0x200,                  'in array, value' ],
     [ null,                   'undefined' ],
-  ], tokenize.state_to_str)
+  ], jtok.state_to_str)
 })

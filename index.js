@@ -107,6 +107,23 @@ var ALL_NUM_CHARS = map_ascii('-0123456789+.eE', 1)
 function inf (msg, state, tok) {
   return {msg: msg || 'unexpected character', where: state_to_str(state), tok: tok}
 }
+
+function index_of_esc (src, off, lim, b, e, escaped) {
+    var adj = escaped ? 1 : 0
+    b !== e || err('escape and byte cannot be the same')
+    lim = lim == null ? src.length : lim
+    for (var i = off || 0; i < lim; i++) {
+        if (src[i] === b) {
+            // count number of escapes going backwards (n = escape count +1)
+            for (var n = 1; src[i-n] === e && i-n >= off; n++) {}
+            if ((n + adj) % 2) {
+                return i - adj      // for escaped, return the index of the preceding escape
+            }
+        }
+    }
+    return -1
+}
+
 function tokenize (cb, src, off, lim) {
   off = off || 0
   lim = lim == null ? src.length : lim
@@ -128,7 +145,7 @@ function tokenize (cb, src, off, lim) {
     voff = -1
     info = null
     tok = src[idx]
-    tok_switch: switch (tok) {
+    switch (tok) {
       case 9: case 10: case 13: case 32:
         if (WHITESPACE[src[++idx]] && idx < lim) {
           while (WHITESPACE[src[++idx]] === 1 && idx < lim) {}
@@ -141,19 +158,9 @@ function tokenize (cb, src, off, lim) {
         state1 = STATES[state0|tok]
         if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
         voff = idx
-        while (true) {
-          while (src[++idx] !== 34) {
-            if (idx === lim) { info = inf('unterminated string', state0|INSIDE, tok); tok = 0; break tok_switch }
-          }
-          if (src[idx - 1] === 92) {
-            for (var i=2; src[idx - i] === 92; i++) {}  // \    count BACKSLASH
-            if (i % 2) {
-              break
-            }
-          } else {
-            break
-          }
-        }
+        idx = index_of_esc(src, idx+1, lim, 34, 92)
+        if (idx === -1) { idx = lim; info = inf('unterminated string', state0|INSIDE, tok); tok = 0; break }
+
         idx++       // move past end quote
 
         if ((state0 & (POS_MASK | KEYVAL_MASK)) === (BEFORE | KEY)) {
@@ -243,13 +250,13 @@ var TOK = {
   ARR_END: 93,    // ']'
   OBJ_BEG: 123,   // '{'
   OBJ_END: 125,   // '}'
-  STR: 34,        // '"'
   FAL: 102,       // 'f'
   NUL: 110,       // 'n'
+  NUM: 78,        // 'N'
+  STR: 34,        // '"'
   TRU: 116,       // 't'
   ERR: 0,         // error.  check err_info for information
   END: 69,        // 'E' - buffer limit reached
-  NUM: 78,        // 'N'
 }
 
 // where codes combine with
@@ -261,8 +268,10 @@ var WHERE = {
   IN_VAL:          0x800,    // inside an object or array value (includes uncertain number cases like 12.3<end>)
   AFTER_VAL:      0x1000,    // after an object or array value, but before the comma or closing array or object brace
 }
-tokenize.WHERE = WHERE
-tokenize.TOK = TOK
-tokenize.state_to_str = state_to_str
 
-module.exports = tokenize
+module.exports = {
+  tokenize: tokenize,
+  WHERE: WHERE,
+  TOK: TOK,
+  state_to_str: state_to_str,
+}
