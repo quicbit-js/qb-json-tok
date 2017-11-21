@@ -16,7 +16,7 @@
 [code-image]:      https://www.bithound.io/github/quicbit-js/qb-json-tok/badges/code.svg
 [code-link]:       https://www.bithound.io/github/quicbit-js/qb-json-tok
 
-Fast (~350 MB/sec) and light (1.6 kb *zero dependecy*) tokenizer for custom JSON/UTF-8 parsers.
+Fast (~200 MB/sec) *NOW WITH VALIDATION*, light (2 kb *zero dependecy*) tokenizer for custom JSON/UTF-8 parsers.
 
 **qb-json-tok now includes validation and incremental parsing - as of version 3.0!**
 
@@ -31,11 +31,63 @@ and leaving heavy-lifting, such as value decoding, as optional work for the call
 
     npm install qb-json-tok
 
-## tokenize(buffer, callback, options)
-  
-## API
+## UPDATED API (OVERHAULED FROM 2.2.2)
 
-The tokenizer is just a function with four inputs:
+The tokenize function has been updated significantly to support validation, context and recovery options
+and *almost* at speeds approximately as fast the prior non-validating version (**200 MB/second** compared with 350).
+That's a big benefit at a still very high speed.
+
+You can't get much faster than a single integer array lookup in javascript, and so json-tok defines 
+an integer-to-integer state map using a single integer array call for state transition - and uses an integer stack 
+for depth changes and brace-matching.  
+
+The parse graph is defined in about 30 lines that map integer context-state + ascii to the allowed context-states:
+
+    // start array  
+    map( CTX_NONE | BEFORE|FIRST|VAL, '[',        CTX_ARR | BEFORE|FIRST|VAL )
+    map( CTX_ARR  | BEFORE|FIRST|VAL, '[',        CTX_ARR | BEFORE|FIRST|VAL )
+    map( CTX_OBJ  | BEFORE|FIRST|VAL, '[',        CTX_ARR | BEFORE|FIRST|VAL )
+    map( CTX_NONE | BEFORE|VAL,       '[',        CTX_ARR | BEFORE|FIRST|VAL )
+    map( CTX_ARR  | BEFORE|VAL,       '[',        CTX_ARR | BEFORE|FIRST|VAL )
+    map( CTX_OBJ  | BEFORE|VAL,       '[',        CTX_ARR | BEFORE|FIRST|VAL )
+    
+    // start object
+    map( CTX_NONE | BEFORE|FIRST|VAL, '{',        CTX_OBJ | BEFORE|FIRST|KEY )
+    map( CTX_ARR  | BEFORE|FIRST|VAL, '{',        CTX_OBJ | BEFORE|FIRST|KEY )
+    map( CTX_OBJ  | BEFORE|FIRST|VAL, '{',        CTX_OBJ | BEFORE|FIRST|KEY )
+    map( CTX_NONE | BEFORE|VAL,       '{',        CTX_OBJ | BEFORE|FIRST|KEY )
+    map( CTX_ARR  | BEFORE|VAL,       '{',        CTX_OBJ | BEFORE|FIRST|KEY )
+    map( CTX_OBJ  | BEFORE|VAL,       '{',        CTX_OBJ | BEFORE|FIRST|KEY )
+    
+    // values (no context)
+    map( CTX_NONE | BEFORE|FIRST|VAL, VAL_CHARS, CTX_NONE | AFTER|VAL )
+    map( CTX_NONE | AFTER|VAL,        ',',       CTX_NONE | BEFORE|VAL )
+    map( CTX_NONE | BEFORE|VAL,       VAL_CHARS, CTX_NONE | AFTER|VAL )   // etc ...
+    
+    // array values
+    map( CTX_ARR | BEFORE|FIRST|VAL,  VAL_CHARS,  CTX_ARR | AFTER|VAL )
+    map( CTX_ARR | AFTER|VAL,         ',',        CTX_ARR | BEFORE|VAL )
+    map( CTX_ARR | BEFORE|VAL,        VAL_CHARS,  CTX_ARR | AFTER|VAL )   // etc ...
+    
+    // object fields
+    map( CTX_OBJ | BEFORE|FIRST|KEY,  '"',        CTX_OBJ | AFTER|KEY )
+    map( CTX_OBJ | AFTER|KEY,         ':',        CTX_OBJ | BEFORE|VAL )
+    map( CTX_OBJ | BEFORE|VAL,        VAL_CHARS,  CTX_OBJ | AFTER|VAL )
+    map( CTX_OBJ | AFTER|VAL,         ',',        CTX_OBJ | BEFORE|KEY )
+    map( CTX_OBJ | BEFORE|KEY,        '"',        CTX_OBJ | AFTER|KEY )  // etc ...
+    
+    // end array or object context - context will be set by checking stack
+    map( CTX_ARR | BEFORE|FIRST|VAL,  ']',        AFTER|VAL )   // empty array
+    map( CTX_ARR | AFTER|VAL,         ']',        AFTER|VAL )
+    map( CTX_OBJ | BEFORE|FIRST|KEY,  '}',        AFTER|VAL )   // empty object
+    map( CTX_OBJ | AFTER|VAL,         '}',        AFTER|VAL )
+    
+simple and fast - that's how we like our software at Quickbit.
+
+## tokenize(callback src, off, lim)
+  
+
+The tokenizer is a function with four inputs:
 
     src:       A UTF-8 encoded array containing ANY JSON value such as an object, quoted
                string, array, or valid JSON number.  IOW, it doesn't have to be a {...} object.
@@ -121,7 +173,7 @@ fields:
 
 ## Example
 
-Tokenizer tracks no state, it simply sifts through JSON tokens without a care - 
+Tokenizer tracks minimal state, it simply sifts through JSON tokens without a care - 
 and without overhead.  Validating numbers and unicode escape sequences, keeping track of depth and paths,
 validating open/closed objects and arrays, searching for key patterns...  any of that is 
 up to the callback.
