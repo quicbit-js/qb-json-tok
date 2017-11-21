@@ -1,6 +1,5 @@
 // STATES   - use second byte.  LSB is for TOK / ascii
 var CTX_MASK =    0x0300
-var CTX_UNK =     0x0000    // unknown context - need to check stack
 var CTX_OBJ =     0x0100
 var CTX_ARR =     0x0200
 var CTX_NONE =    0x0300
@@ -20,25 +19,26 @@ function state_to_str (state) {
   if (state == null) {
     return 'undefined'
   }
-  var ret = ''
+  var ctx = ''
   switch (state & CTX_MASK) {
-    case CTX_OBJ: ret += 'in object, '; break
-    case CTX_ARR: ret += 'in array, '; break
-    case CTX_UNK: ret += 'unknown context, '; break
+    case CTX_OBJ: ctx = 'in object'; break
+    case CTX_ARR: ctx = 'in array'; break
   }
-  switch (state & POS_MASK) {
-    case BEFORE: ret += 'before'; break
-    case AFTER: ret += 'after'; break
-    case INSIDE: ret += 'inside'; break
-  }
-  if (state & FIRST) { ret += ' first' }
-  ret += (state & KEY) ? ' key' : ' value'
 
-  return ret
+  var pos = []
+  switch (state & POS_MASK) {
+    case BEFORE: pos.push('before'); break
+    case AFTER: pos.push('after'); break
+    case INSIDE: pos.push('within'); break
+  }
+  if (state & FIRST) { pos.push('first') }
+  pos.push((state & KEY) ? 'key' : 'value')
+
+  var ret = pos.join(' ')
+  return ctx ? ctx + ', ' + ret : ret
 }
 
-var NUM_CHARS = '-0123456789'      // legal number start chars
-var VAL_CHARS = '"ntf' + NUM_CHARS
+var VAL_CHARS = '"ntf-0123456789' // all legal value start characters
 
 // create an int-int map from (state + tok) -- to --> (new state)
 function state_map () {
@@ -84,11 +84,11 @@ function state_map () {
   map( CTX_OBJ | AFTER|VAL,         ',',        CTX_OBJ | BEFORE|KEY )
   map( CTX_OBJ | BEFORE|KEY,        '"',        CTX_OBJ | AFTER|KEY )  // etc ...
 
-  // end contexts - check stack for next context
-  map( CTX_ARR | BEFORE|FIRST|VAL,  ']',        CTX_UNK | AFTER|VAL )   // empty array
-  map( CTX_ARR | AFTER|VAL,         ']',        CTX_UNK | AFTER|VAL )
-  map( CTX_OBJ | BEFORE|FIRST|KEY,  '}',        CTX_UNK | AFTER|VAL )   // empty object
-  map( CTX_OBJ | AFTER|VAL,         '}',        CTX_UNK | AFTER|VAL )
+  // end array or object context - context will be set by checking stack
+  map( CTX_ARR | BEFORE|FIRST|VAL,  ']',        AFTER|VAL )   // empty array
+  map( CTX_ARR | AFTER|VAL,         ']',        AFTER|VAL )
+  map( CTX_OBJ | BEFORE|FIRST|KEY,  '}',        AFTER|VAL )   // empty object
+  map( CTX_OBJ | AFTER|VAL,         '}',        AFTER|VAL )
 
   return ret
 }
@@ -102,7 +102,7 @@ function map_ascii (s, code) {
 }
 
 var WHITESPACE = map_ascii('\n\t\r ', 1)
-// var NUM_CHARS_ALL = NUM_CHARS + '+.eE'   // all legal number chars
+var ALL_NUM_CHARS = map_ascii('-0123456789+.eE', 1)
 
 function inf (msg, state, tok) {
   return {msg: msg || 'unexpected character', where: state_to_str(state), tok: tok}
@@ -209,23 +209,10 @@ function tokenize (cb, src, off, lim) {
         if (!state1) { info = inf(null, state0, tok); tok = 0; voff = idx++; break }
         voff = idx
         tok = TOK.NUM                                 // N  Number
-        while (++idx < lim) {
-          switch (src[idx]) {
-            // skip all possibly-valid characters - as fast as we can
-            case 48:case 49:case 50:case 51:case 52:   // digits 0-4
-            case 53:case 54:case 55:case 56:case 57:   // digits 5-9
-            case 43:                                   // +
-            case 45:                                   // -
-            case 46:                                   // .
-            case 69:                                   // E
-            case 101:                                  // e
-              break
-            default:
-              state0 = state1
-              break tok_switch
-          }
-        }
-        if ((state0 & CTX_MASK) !== CTX_NONE) { info = {msg: 'unterminated number', where: state_to_str(state0 | INSIDE), tok: tok }; tok = 0; break }
+
+        while (ALL_NUM_CHARS[src[++idx]] === 1 && idx < lim) {}
+        if (idx === lim && (state0 & CTX_MASK) !== CTX_NONE) { info = inf('unterminated number', state0|INSIDE, tok); tok = 0; break }
+        state0 = state1
         break
       default:
         voff = idx++
@@ -276,5 +263,6 @@ var WHERE = {
 }
 tokenize.WHERE = WHERE
 tokenize.TOK = TOK
+tokenize.state_to_str = state_to_str
 
 module.exports = tokenize

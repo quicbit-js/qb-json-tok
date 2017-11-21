@@ -1,6 +1,6 @@
 var test = require('test-kit').tape()
-var tokenize = require('.')
 var utf8 = require('qb-utf8-ez')
+var tokenize = require('.')
 
 // useful token constants:
 var TOK = tokenize.TOK
@@ -57,20 +57,21 @@ function format_callback (opt) {
 test('tokenize', function (t) {
   t.tableAssert(
     [
-      [ 'input',             'tok_opt',  'cb_opt',         'exp'                                                      ],
-      [ '"x"',                null,       null,            [ 'S3@0', 'E@3']                                           ],
-      [ '-3.05',              null,       null,            [ 'N5@0', 'E@5' ]                                          ],
-      [ '  true',             null,       null,            [ 't@2', 'E@6' ]                                           ],
-      [ ' false',             null,       null,            [ 'f@1', 'E@6' ]                                           ],
-      [ '{"a":1}',            null,       null,            [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                         ],
-      [ '{"a" :1}',           null,       null,            [ '{@0','K3@1:N1@6','}@7', 'E@8' ]                         ],
-      [ '{"a": 1}',           null,       null,            [ '{@0','K3@1:N1@6','}@7', 'E@8' ]                         ],
-      [ '"\\""',              null,       null,            [ 'S4@0', 'E@4' ]                                          ],
-      [ '"\\\\"',             null,       null,            [ 'S4@0', 'E@4' ]                                          ],
-      [ '\t\t"x\\a\r"  ',     null,       null,            [ 'S6@2', 'E@10']                                          ],
-      [ '"\\"x\\"a\r\\""',    null,       null,            [ 'S11@0', 'E@11']                                         ],
-      [ ' [0,1,2]',           null,       null,            [ '[@1','N1@2','N1@4','N1@6',']@7','E@8']                  ],
-      [ '["a", "bb"] ',       null,       null,            [ '[@0','S3@1','S4@6',']@10', 'E@12' ]                     ],
+      [ 'input',             'tok_opt',  'cb_opt',                'exp'                                                      ],
+      [ '"x"',                null,       null,                   [ 'S3@0', 'E@3']                                           ],
+      [ '-3.05',              null,       null,                   [ 'N5@0', 'E@5' ]                                          ],
+      [ '  true',             null,       null,                   [ 't@2', 'E@6' ]                                           ],
+      [ ' false',             null,       null,                   [ 'f@1', 'E@6' ]                                           ],
+      [ '[3.05E-2]',          null,       null,                   [ '[@0', 'N7@1', ']@8', 'E@9' ]                                        ],
+      [ '{"a":1}',            null,       null,                   [ '{@0','K3@1:N1@5','}@6', 'E@7' ]                         ],
+      [ '{"a" :1}',           null,       null,                   [ '{@0','K3@1:N1@6','}@7', 'E@8' ]                         ],
+      [ '{"a": 1}',           null,       null,                   [ '{@0','K3@1:N1@6','}@7', 'E@8' ]                         ],
+      [ '"\\""',              null,       null,                   [ 'S4@0', 'E@4' ]                                          ],
+      [ '"\\\\"',             null,       null,                   [ 'S4@0', 'E@4' ]                                          ],
+      [ '\t\t"x\\a\r"  ',     null,       null,                   [ 'S6@2', 'E@10']                                          ],
+      [ '"\\"x\\"a\r\\""',    null,       null,                   [ 'S11@0', 'E@11']                                         ],
+      [ ' [0,1,2]',           null,       null,                   [ '[@1','N1@2','N1@4','N1@6',']@7','E@8']                  ],
+      [ '["a", "bb"] ',       null,       null,                   [ '[@0','S3@1','S4@6',']@10', 'E@12' ]                     ],
       [ '"x", 4\n, null, 3.2e5 , true, false',      null, null,   [ 'S3@0','N1@5','n@9','N5@15','t@23', 'f@29', 'E@34']         ],
       [ '["a",1.3,\n\t{ "b" : ["v", "w"]\n}\t\n ]', null, null,   [ '[@0','S3@1','N3@5','{@11','K3@13:[@19','S3@20','S3@25',']@28','}@30',']@34', 'E@35' ] ],
 
@@ -79,18 +80,23 @@ test('tokenize', function (t) {
         ',[,:["b"]',          null,       null,
         [ '!1@0 before first value, tok: ","', '[@1', '!1@2 in array, before first value, tok: ","', '!1@3 in array, before first value, tok: ":"', '[@4', 'S3@5', ']@8', 'E@9' ]
       ],
-      [ '"ab',                null,       null,                    [ '!3@0 inside first value, tok: """', 'E@3' ]  ],
-      [ '"\\\\\\"',           null,       null,                    [ '!5@0 inside first value, tok: """', 'E@5' ]  ],
-      [ '"abc"%',             null,       {ret_on_err: 0},         [ 'S5@0', '!1@5 after value, tok: "%"' ]  ],
-      [ '0*',                 null,       null,                    [ 'N1@0', '!1@1 after value, tok: "*"', 'E@2' ]  ],
-      [ '{"a":3^6}',          null,       {ret_on_err: 0},         [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^"' ] ],
-      [ '{"a":3^6}',          null,       {ret_on_err: -1},        [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^"', '!1@7 in object, after value, tok: "6"', '}@8', 'E@9' ]  ],
-      [ '{"a":3^6}',          null,       {ret_on_err: null},      [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^"', '!1@7 in object, after value, tok: "6"', '}@8', 'E@9' ]  ],
-      [ '{"a":^}',            null,       {ret_on_err: 0},         [ '{@0', 'K3@1:!1@5 in object, before value, tok: "^"' ]  ],
-      [ '"ab',                null,       {ret_on_err: 0},         [ '!3@0 inside first value, tok: """' ]  ],
-      [ '0*',                 null,       {ret_on_err: 0},         [ 'N1@0', '!1@1 after value, tok: "*"' ] ],
-      [ '0*',                 null,       {ret_on_err: -1},        [ 'N1@0', '!1@1 after value, tok: "*"', 'E@2' ] ],
-      [ '{"a":1,"b:2,"c":3}', null,       {ret_on_err: undefined},    [ '{@0', 'K3@1:N1@5', 'K6@7:!1@13 in object, after key, tok: "c"', '!1@14 in object, after key, tok: """', 'N1@16', '}@17', 'E@18' ] ],
+      [ '"ab',                null,       null,                     [ '!3@0 within first value, tok: """', 'E@3' ]  ],
+      [ '"\\\\\\"',           null,       null,                     [ '!5@0 within first value, tok: """', 'E@5' ]  ],
+      [ '"abc"%',             null,       {ret_on_err: 0},          [ 'S5@0', '!1@5 after value, tok: "%"' ]  ],
+      [ '0*',                 null,       null,                     [ 'N1@0', '!1@1 after value, tok: "*"', 'E@2' ]  ],
+      [ '0{',                 null,       null,                     [ 'N1@0', '!1@1 after value, tok: "{"', 'E@2' ]  ],
+      [ '1,2n',               null,       null,                     [ 'N1@0', 'N1@2', '!1@3 after value, tok: "n"', 'E@4' ] ],
+      [ '1f',                 null,       null,                     [ 'N1@0', '!1@1 after value, tok: "f"', 'E@2' ] ],
+      [ '[3.05E-2',           null,       null,                     [ '[@0', '!7@1 in array, within first value, tok: "N"', 'E@8' ]  ],
+      [ '[3.05E-2,4.',        null,       null,                     [ '[@0', 'N7@1', '!2@9 in array, within value, tok: "N"', 'E@11' ]  ],
+      [ '{"a":3^6}',          null,       {ret_on_err: 0},          [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^"' ] ],
+      [ '{"a":3^6}',          null,       {ret_on_err: -1},         [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^"', '!1@7 in object, after value, tok: "6"', '}@8', 'E@9' ]  ],
+      [ '{"a":3^6}',          null,       {ret_on_err: null},       [ '{@0', 'K3@1:N1@5', '!1@6 in object, after value, tok: "^"', '!1@7 in object, after value, tok: "6"', '}@8', 'E@9' ]  ],
+      [ '{"a":^}',            null,       {ret_on_err: 0},          [ '{@0', 'K3@1:!1@5 in object, before value, tok: "^"' ]  ],
+      [ '"ab',                null,       {ret_on_err: 0},          [ '!3@0 within first value, tok: """' ]  ],
+      [ '0*',                 null,       {ret_on_err: 0},          [ 'N1@0', '!1@1 after value, tok: "*"' ] ],
+      [ '0*',                 null,       {ret_on_err: -1},         [ 'N1@0', '!1@1 after value, tok: "*"', 'E@2' ] ],
+      [ '{"a":1,"b:2,"c":3}', null,       {ret_on_err: undefined},  [ '{@0', 'K3@1:N1@5', 'K6@7:!1@13 in object, after key, tok: "c"', '!1@14 in object, after key, tok: """', 'N1@16', '}@17', 'E@18' ] ],
     ],
     function (input, tok_opt, cb_opt) {
       cb_opt = cb_opt || {}
@@ -151,4 +157,14 @@ test('callback return', function (t) {
       return hector.arg(0)
     }
   )
+})
+
+test('state_to_str', function (t) {
+  t.table_assert([
+    [ 'state',                'exp' ],
+    [ 0x100,                  'in object, value' ],
+    [ 0x100,                  'in object, value' ],
+    [ 0x200,                  'in array, value' ],
+    [ null,                   'undefined' ],
+  ], tokenize.state_to_str)
 })
