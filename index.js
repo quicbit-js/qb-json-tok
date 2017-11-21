@@ -139,9 +139,6 @@ function tokenize (cb, src, off, lim) {
   var state1 = 0                    // new state
   var tok = -1                      // current token/byte being handled
 
-  // skip whitspace and set tok prior to loop
-  while (WHITESPACE[src[idx]] === 1 && idx < lim) {idx++}
-
   while (idx < lim) {
     voff = -1
     info = null
