@@ -139,6 +139,8 @@ function tokenize (cb, src, off, lim) {
   var state1 = 0                    // new state
   var tok = -1                      // current token/byte being handled
 
+  cb(src, -1, -1, TOK.BEG, off, off)                      // 'B' - BEGIN
+
   while (idx < lim) {
     voff = -1
     info = null
@@ -229,23 +231,24 @@ function tokenize (cb, src, off, lim) {
         info = {msg: 'unexpected character', where: state_to_str(state0), tok: tok }; tok = 0
     }
 
-    if (voff !== -1) {
-      var cbres = cb(src, koff, klim, tok, voff, idx, info)
-      koff = -1
-      klim = -1
-      if (cbres > 0) {
-        idx = cbres
-      } else if (cbres === 0) {
-        return                                                        // cb requested stop
-      }
-    }
+    // if (voff !== -1) {
+    //   var cbres = cb(src, koff, klim, tok, voff, idx, info)
+    //   koff = -1
+    //   klim = -1
+    //   if (cbres > 0) {
+    //     idx = cbres
+    //   } else if (cbres === 0) {
+    //     return                                                        // cb requested stop
+    //   }
+    // }
   }  // end main_loop: while(idx < lim) {...
 
   // handle this when implementing split handling
   // if (koff !== -1) {
   //     cb(src, -1, 0, 34, koff, (klim - koff))  // push out pending string
   // }
-  cb(src, -1, -1, TOK.END, idx, idx)
+
+  cb(src, -1, -1, TOK.END, idx, idx)        // END
 }
 
 var TOK = {
@@ -259,7 +262,8 @@ var TOK = {
   STR: 34,        // '"'
   TRU: 116,       // 't'
   ERR: 0,         // error.  check err_info for information
-  END: 69,        // 'E' - buffer limit reached
+  BEG: 66,        // 'B' - begin - about to process
+  END: 69,        // 'E' - end -   buffer limit reached
 }
 
 // where codes combine with
